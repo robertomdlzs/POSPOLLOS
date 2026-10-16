@@ -53,7 +53,7 @@ Sin foto, la tarjeta muestra la inicial del producto.
 npm run build      # genera dist/
 ```
 
-Sirve `dist/` en el mismo dominio que el backend (por ejemplo, con Nginx: `/` a `dist/` y `/api` y `/socket.io` al backend). Si van en dominios distintos, compila con `VITE_API_URL=https://api.tu-dominio.com` y agrega el dominio del frontend a `CORS_ORIGINS` del backend.
+Sirve `dist/` en el mismo dominio que el backend (por ejemplo, con Nginx: `/` a `dist/` y `/api` y `/socket.io` al backend). Como la app usa rutas (`/mesas`, `/pedido/:id`, `/caja`…), el servidor debe responder `index.html` a cualquier ruta que no sea un archivo: en Nginx, `try_files $uri /index.html;`; en Caddy, `try_files {path} /index.html`. Si van en dominios distintos, compila con `VITE_API_URL=https://api.tu-dominio.com` y agrega el dominio del frontend a `CORS_ORIGINS` del backend.
 
 ## Decisiones
 

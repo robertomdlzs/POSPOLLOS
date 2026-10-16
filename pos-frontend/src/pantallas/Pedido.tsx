@@ -32,11 +32,13 @@ const precioLinea = (l: Linea) => (Number(l.producto.precio) + l.opciones.reduce
 interface Props {
   contexto: AbrirPedido;
   rol: Rol;
+  /** El pedido nuevo ya existe en el servidor: para pasar a su dirección */
+  onCreado?: (id: string) => void;
   onVolver: () => void;
   onIrCaja: () => void;
 }
 
-export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
+export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
   const avisar = useAvisar();
   const menu = useDatos(async () => (menuEnMemoria ??= await api<Producto[]>('GET', '/menu')), []);
   const [pedidoId, setPedidoId] = useState(contexto.pedidoId);
@@ -74,10 +76,12 @@ export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
   const total = Number(p?.totales.total ?? 0) + totalBorrador;
   const activos = (p?.items ?? []).filter((i) => i.estado !== 'anulado').length;
 
+  // Al abrir un pedido por su dirección no hay contexto: manda lo que diga el servidor
+  const tipoServicio = p?.tipoServicio ?? contexto.tipoServicio;
   const titulo =
-    contexto.tipoServicio === 'mesa'
+    tipoServicio === 'mesa'
       ? `Mesa ${p?.mesa ?? contexto.mesa?.numero ?? ''}`
-      : (p?.clienteNombre ?? contexto.clienteNombre ?? NOMBRE_SERVICIO[contexto.tipoServicio]);
+      : (p?.clienteNombre ?? contexto.clienteNombre ?? NOMBRE_SERVICIO[tipoServicio]);
 
   function agregar(producto: Producto, opciones: Opcion[] = [], cantidad = 1, notas = '') {
     setLineas((ls) => {
@@ -124,6 +128,7 @@ export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
         });
         id = creado.id;
         setPedidoId(id);
+        onCreado?.(id);
       } else if (items.length) {
         await api('POST', `/pedidos/${id}/items`, { idempotencyKey: claveLote.current, items });
       }

@@ -366,6 +366,9 @@ input::placeholder { color: var(--tinta-3); }
 .barra-tab:only-child,
 .barra-tab.activa:only-child { box-shadow: none; padding-left: 0.4rem; color: #fff; cursor: default; }
 .barra-tab {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
   min-height: 44px;
   padding: 0 1.15rem;
   border: 0;

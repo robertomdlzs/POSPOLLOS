@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import { alCambiarSesion, cerrarSesion, obtenerSesion } from './api';
 import { ProveedorAvisos, useAvisar } from './componentes/Avisos';
 import { Bloqueo, useInactividad } from './componentes/Bloqueo';
@@ -11,34 +12,58 @@ import { cerrarCanal, canalCocina } from './socket';
 import type { Rol, Sesion } from './tipos';
 import { NOMBRE_ROL, cant } from './util';
 
-type Vista = { tipo: 'mesas' } | { tipo: 'pedido'; contexto: AbrirPedido; clave: number } | { tipo: 'caja' } | { tipo: 'cocina' };
+type Seccion = 'mesas' | 'caja' | 'cocina';
 
-const SECCIONES: Record<Rol, ('mesas' | 'caja' | 'cocina')[]> = {
+const SECCIONES: Record<Rol, Seccion[]> = {
   mesero: ['mesas'],
   cajero: ['mesas', 'caja'],
   cocina: ['cocina'],
   supervisor: ['mesas', 'caja', 'cocina'],
   admin: ['mesas', 'caja', 'cocina'],
 };
-const NOMBRE_SECCION = { mesas: 'Mesas', caja: 'Caja', cocina: 'Cocina' };
+const NOMBRE_SECCION: Record<Seccion, string> = { mesas: 'Mesas', caja: 'Caja', cocina: 'Cocina' };
+
+/** Lo que viaja en el estado de la navegación al abrir un pedido */
+interface EstadoPedido {
+  contexto: AbrirPedido;
+  /** Identifica esta apertura: se conserva cuando el pedido nuevo pasa a tener id */
+  clave: number;
+}
 
 export function App() {
+  return (
+    <BrowserRouter>
+      <ProveedorAvisos>
+        <Raiz />
+      </ProveedorAvisos>
+    </BrowserRouter>
+  );
+}
+
+function Raiz() {
   const [sesion, setSesion] = useState<Sesion | null>(obtenerSesion());
+  const navegar = useNavigate();
   useEffect(() => alCambiarSesion(setSesion), []);
 
-  // Al cambiar de usuario, el canal en tiempo real se abre de nuevo con su token
+  // Al salir, el canal en tiempo real se cierra y quien entre después empieza
+  // en su sección de inicio, no en la pantalla que dejó el anterior
   useEffect(() => {
-    if (!sesion) cerrarCanal();
-  }, [sesion]);
+    if (!sesion) {
+      cerrarCanal();
+      navegar('/', { replace: true });
+    }
+  }, [sesion, navegar]);
 
-  return <ProveedorAvisos>{sesion ? <Trabajo key={sesion.usuario.id} sesion={sesion} /> : <Ingreso />}</ProveedorAvisos>;
+  return sesion ? <Trabajo key={sesion.usuario.id} sesion={sesion} /> : <Ingreso />;
 }
 
 function Trabajo({ sesion }: { sesion: Sesion }) {
   const avisar = useAvisar();
+  const navegar = useNavigate();
+  const { pathname } = useLocation();
   const { rol, nombre } = sesion.usuario;
   const secciones = SECCIONES[rol];
-  const [vista, setVista] = useState<Vista>({ tipo: secciones[0] });
+  const inicio = `/${secciones[0]}`;
   // La pantalla de cocina se mira más de lo que se toca: no se bloquea
   const [bloqueada, desbloquear] = useInactividad(rol !== 'cocina');
 
@@ -57,17 +82,26 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
     };
   }, [rol, avisar]);
 
-  const seccionActiva = vista.tipo === 'pedido' ? 'mesas' : vista.tipo;
+  /** Solo deja ver la sección si el rol la tiene; si no, lo lleva a su inicio */
+  const conPermiso = (s: Seccion, elemento: ReactNode) => (secciones.includes(s) ? elemento : <Navigate to={inicio} replace />);
+
+  const abrirPedido = (contexto: AbrirPedido) =>
+    navegar(`/pedido/${contexto.pedidoId ?? 'nuevo'}`, { state: { contexto, clave: Date.now() } satisfies EstadoPedido });
 
   return (
-    <div className={`app ${vista.tipo === 'cocina' ? 'tema-cocina' : ''}`}>
+    <div className={`app ${pathname.startsWith('/cocina') ? 'tema-cocina' : ''}`}>
       <header className="barra">
         <nav className="barra-nav" aria-label="Secciones">
           {secciones.map((s) => (
-              <button key={s} className={`barra-tab ${seccionActiva === s ? 'activa' : ''}`} onClick={() => setVista({ tipo: s })} aria-current={seccionActiva === s}>
-                {NOMBRE_SECCION[s]}
-              </button>
-            ))}
+            // Un pedido es parte de Mesas: la pestaña sigue marcada mientras se toma
+            <NavLink
+              key={s}
+              to={`/${s}`}
+              className={({ isActive }) => `barra-tab ${isActive || (s === 'mesas' && pathname.startsWith('/pedido')) ? 'activa' : ''}`}
+            >
+              {NOMBRE_SECCION[s]}
+            </NavLink>
+          ))}
         </nav>
         <div className="barra-usuario">
           <span>
@@ -80,20 +114,48 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
       </header>
 
       <main className="contenido">
-        {vista.tipo === 'mesas' && <Mesas onAbrir={(contexto) => setVista({ tipo: 'pedido', contexto, clave: Date.now() })} />}
-        {vista.tipo === 'pedido' && (
-          <Pedido
-            key={vista.clave}
-            contexto={vista.contexto}
-            rol={rol}
-            onVolver={() => setVista({ tipo: 'mesas' })}
-            onIrCaja={() => setVista(secciones.includes('caja') ? { tipo: 'caja' } : { tipo: 'mesas' })}
-          />
-        )}
-        {vista.tipo === 'caja' && <Caja rol={rol} />}
-        {vista.tipo === 'cocina' && <Cocina />}
+        <Routes>
+          <Route path="/" element={<Navigate to={inicio} replace />} />
+          <Route path="/mesas" element={conPermiso('mesas', <Mesas onAbrir={abrirPedido} />)} />
+          <Route path="/pedido/:id" element={conPermiso('mesas', <PaginaPedido rol={rol} puedeCaja={secciones.includes('caja')} />)} />
+          <Route path="/caja" element={conPermiso('caja', <Caja rol={rol} />)} />
+          <Route path="/cocina" element={conPermiso('cocina', <Cocina />)} />
+          <Route path="*" element={<Navigate to={inicio} replace />} />
+        </Routes>
       </main>
       {bloqueada && <Bloqueo nombre={nombre} onDesbloquear={desbloquear} />}
     </div>
+  );
+}
+
+/**
+ * /pedido/nuevo llega con el contexto (mesa, cliente) en el estado de la
+ * navegación; /pedido/:id se puede abrir directo o recargar, porque el pedido
+ * se carga del servidor.
+ */
+function PaginaPedido({ rol, puedeCaja }: { rol: Rol; puedeCaja: boolean }) {
+  const { id = '' } = useParams();
+  const navegar = useNavigate();
+  const estado = useLocation().state as EstadoPedido | null;
+
+  // Un pedido nuevo sin contexto (por ejemplo, al recargar) no sabe de qué mesa es
+  if (id === 'nuevo' && !estado) return <Navigate to="/mesas" replace />;
+  const contexto: AbrirPedido = id === 'nuevo' ? estado!.contexto : { tipoServicio: 'mesa', ...estado?.contexto, pedidoId: id };
+
+  return (
+    <Pedido
+      // La misma apertura conserva la pantalla aunque el pedido nuevo pase a tener id
+      key={estado?.clave ?? id}
+      contexto={contexto}
+      rol={rol}
+      onCreado={(nuevoId) =>
+        navegar(`/pedido/${nuevoId}`, {
+          replace: true,
+          state: { contexto: { ...contexto, pedidoId: nuevoId }, clave: estado?.clave ?? Date.now() } satisfies EstadoPedido,
+        })
+      }
+      onVolver={() => navegar('/mesas')}
+      onIrCaja={() => navegar(puedeCaja ? '/caja' : '/mesas')}
+    />
   );
 }
