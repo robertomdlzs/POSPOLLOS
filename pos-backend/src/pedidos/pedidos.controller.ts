@@ -39,6 +39,12 @@ export class PedidosController {
     return this.pedidos.enviarACocina(id, u);
   }
 
+  @Post(':id/cerrar-vacio')
+  @HttpCode(200)
+  cerrarVacio(@Param('id', ParseUUIDPipe) id: string, @UsuarioActual() u: UsuarioToken) {
+    return this.pedidos.cerrarVacio(id, u);
+  }
+
   @Post(':id/items/:itemId/anular')
   @HttpCode(200)
   anularItem(

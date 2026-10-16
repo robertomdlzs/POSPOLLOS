@@ -48,6 +48,7 @@ export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
   const [anulando, setAnulando] = useState<ItemPedido | null>(null);
   const [cobrando, setCobrando] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
   const [verComanda, setVerComanda] = useState(false);
   // Misma clave en todos los reintentos: si el primer envío llegó, el servidor no duplica el pedido
   const claveCreacion = useRef(uuid());
@@ -129,6 +130,20 @@ export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
     } finally {
       setEnviando(false);
       pedido.recargar();
+    }
+  }
+
+  /** Todo se anuló: se cierra el pedido para que la mesa no quede ocupada */
+  async function cerrarVacio() {
+    if (!pedidoId) return;
+    setCerrando(true);
+    try {
+      await api('POST', `/pedidos/${pedidoId}/cerrar-vacio`);
+      avisar(`${titulo}: pedido cerrado`, 'info');
+      onVolver();
+    } catch (e) {
+      avisar(mensajeError(e), 'error');
+      setCerrando(false);
     }
   }
 
@@ -254,7 +269,11 @@ export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
           <button className="boton boton-cocina boton-grande" disabled={!porEnviar || enviando} onClick={enviarACocina}>
             {enviando ? 'Enviando…' : porEnviar ? `Enviar a cocina (${porEnviar})` : 'Nada nuevo por enviar'}
           </button>
-          {puedeCobrar(rol) && (
+          {p && activos === 0 && p.items.length > 0 && !lineas.length ? (
+            <button className="boton boton-peligro boton-grande" disabled={cerrando} onClick={cerrarVacio}>
+              {cerrando ? 'Cerrando…' : contexto.tipoServicio === 'mesa' ? 'Cerrar pedido y liberar la mesa' : 'Cerrar pedido'}
+            </button>
+          ) : puedeCobrar(rol) && (
             <button
               className="boton boton-primario boton-grande"
               disabled={!p || lineas.length > 0 || sinEnviar > 0 || activos === 0}

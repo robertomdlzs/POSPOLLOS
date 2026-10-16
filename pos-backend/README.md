@@ -80,6 +80,7 @@ Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, 
 | POST | `/pedidos/:id/items` | ídem | Agregar productos |
 | POST | `/pedidos/:id/enviar-cocina` | ídem | Envía lo nuevo y avisa por WebSocket |
 | POST | `/pedidos/:id/items/:itemId/anular` | ídem | Si ya está en cocina, pide PIN de supervisor |
+| POST | `/pedidos/:id/cerrar-vacio` | ídem | Cierra un pedido con todo anulado y libera la mesa |
 | GET | `/cocina/pendientes?estacionId=` | cocina, mesero, supervisor | Cola de la pantalla de cocina |
 | PATCH | `/cocina/items/:id` | ídem | `{ estado: preparando \| listo \| entregado }` |
 | POST | `/caja/turnos` | cajero, supervisor | Abrir turno con base |

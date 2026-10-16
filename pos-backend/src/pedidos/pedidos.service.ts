@@ -170,6 +170,34 @@ export class PedidosService {
     return this.obtener(pedidoId, u);
   }
 
+  /**
+   * Cierra un pedido que se quedó sin productos (todos anulados) y libera la mesa.
+   * Cada anulación ya pasó por su propia autorización, así que aquí no se pide supervisor.
+   */
+  async cerrarVacio(pedidoId: string, u: UsuarioToken) {
+    await this.db.transaction(async (c) => {
+      const p = await this.bloquear(c, pedidoId, u);
+      this.exigirEditable(p);
+      const activos = await this.db.one<{ n: number }>(
+        `SELECT count(*)::int AS n FROM pedido_item WHERE pedido_id = $1 AND estado <> 'anulado'`,
+        [pedidoId],
+        c,
+      );
+      if (activos!.n > 0) {
+        throw new ConflictException('El pedido todavía tiene productos: anúlalos o cóbralo');
+      }
+      await this.db.query(`UPDATE pedido SET estado = 'anulado', actualizado_en = now() WHERE id = $1`, [pedidoId], c);
+      if (p.mesa_id) {
+        await this.db.query(`UPDATE mesa SET estado = 'libre' WHERE id = $1 AND estado = 'ocupada'`, [p.mesa_id], c);
+      }
+      await this.auditoria.registrar(
+        { usuarioId: u.id, accion: 'cerrar_pedido_vacio', entidad: 'pedido', entidadId: pedidoId, datos: { numero: p.numero } },
+        c,
+      );
+    });
+    return this.obtener(pedidoId, u);
+  }
+
   async obtener(pedidoId: string, u: UsuarioToken) {
     const pedido = await this.db.one(
       `SELECT p.id, p.numero, p.tipo_servicio AS "tipoServicio", p.estado, p.mesa_id AS "mesaId",
