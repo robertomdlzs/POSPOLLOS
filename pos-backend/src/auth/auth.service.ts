@@ -1,0 +1,232 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import bcrypt from 'bcryptjs';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { AutorizacionDto } from '../common/dto';
+import { Rol } from '../common/tipos';
+import { config } from '../config';
+import { DatabaseService, Db } from '../database/database.service';
+import { LoginPasswordDto, LoginPinDto } from './auth.dto';
+
+const MAX_INTENTOS = 5;
+const MINUTOS_BLOQUEO = 5;
+// Hash de relleno para que un email inexistente tarde lo mismo que uno real
+const HASH_RELLENO = bcrypt.hashSync('relleno-no-usar', 10);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface UsuarioFila {
+  id: string;
+  nombre: string;
+  rol: Rol;
+  empresa_id: string;
+  activo: boolean;
+  pin_hash: string | null;
+  password_hash: string | null;
+  intentos_fallidos: number;
+  bloqueado_hasta: Date | null;
+}
+
+const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly jwt: JwtService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
+
+  /** Lista para la pantalla de "toca tu nombre y escribe tu PIN" */
+  usuariosConPin() {
+    return this.db.query(
+      `SELECT id, nombre, rol FROM usuario WHERE activo AND pin_hash IS NOT NULL ORDER BY nombre`,
+    );
+  }
+
+  async loginPin(dto: LoginPinDto, dispositivo?: string) {
+    const u = await this.verificarCredencial(dto.usuarioId, 'pin_hash', dto.pin);
+    return this.db.transaction((c) => this.crearSesion(c, u, dto.sedeId, dispositivo));
+  }
+
+  async loginPassword(dto: LoginPasswordDto, dispositivo?: string) {
+    const fila = await this.db.one<{ id: string }>(
+      `SELECT id FROM usuario WHERE lower(email) = lower($1)`,
+      [dto.email],
+    );
+    if (!fila) {
+      await bcrypt.compare(dto.password, HASH_RELLENO);
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+    const u = await this.verificarCredencial(fila.id, 'password_hash', dto.password);
+    return this.db.transaction((c) => this.crearSesion(c, u, dto.sedeId, dispositivo));
+  }
+
+  /**
+   * Refresh rotativo: cada refresh token sirve una sola vez. Si alguien
+   * reutiliza uno ya usado, asumimos robo y cerramos todas las sesiones.
+   */
+  async refrescar(refreshToken: string, dispositivo?: string) {
+    const [id, secreto] = refreshToken.split('.');
+    if (!id || !secreto || !UUID_RE.test(id)) throw new UnauthorizedException('Sesión inválida');
+
+    type Resultado =
+      | { invalida: true }
+      | { reutilizada: true; usuarioId: string }
+      | { sesion: Awaited<ReturnType<AuthService['crearSesion']>> };
+
+    const resultado = await this.db.transaction(async (c): Promise<Resultado> => {
+      const s = await this.db.one(
+        `SELECT s.id, s.usuario_id, s.sede_id, s.token_hash, s.expira_en, s.revocada_en,
+                u.nombre, u.rol, u.empresa_id, u.activo
+           FROM sesion s JOIN usuario u ON u.id = s.usuario_id
+          WHERE s.id = $1
+          FOR UPDATE OF s`,
+        [id],
+        c,
+      );
+      if (!s || !this.hashIgual(sha256(secreto), s.token_hash)) return { invalida: true };
+      if (s.revocada_en) return { reutilizada: true, usuarioId: s.usuario_id };
+      if (new Date(s.expira_en) < new Date() || !s.activo) return { invalida: true };
+
+      await this.db.query(`UPDATE sesion SET revocada_en = now() WHERE id = $1`, [s.id], c);
+      const usuario = { id: s.usuario_id, nombre: s.nombre, rol: s.rol, empresa_id: s.empresa_id };
+      return { sesion: await this.crearSesion(c, usuario, s.sede_id, dispositivo) };
+    });
+
+    if ('reutilizada' in resultado) {
+      await this.db.query(
+        `UPDATE sesion SET revocada_en = now() WHERE usuario_id = $1 AND revocada_en IS NULL`,
+        [resultado.usuarioId],
+      );
+      await this.auditoria.registrar({
+        usuarioId: resultado.usuarioId,
+        accion: 'refresh_reutilizado',
+        entidad: 'sesion',
+        entidadId: id,
+        dispositivo,
+      });
+      throw new UnauthorizedException('Sesión inválida');
+    }
+    if ('invalida' in resultado) throw new UnauthorizedException('Sesión inválida o vencida');
+    return resultado.sesion;
+  }
+
+  async cerrarSesion(refreshToken: string) {
+    const [id, secreto] = refreshToken.split('.');
+    if (!id || !secreto || !UUID_RE.test(id)) return;
+    await this.db.query(
+      `UPDATE sesion SET revocada_en = now() WHERE id = $1 AND token_hash = $2 AND revocada_en IS NULL`,
+      [id, sha256(secreto)],
+    );
+  }
+
+  /**
+   * Valida el PIN de un supervisor (o admin) para autorizar descuentos,
+   * anulaciones, retiros de caja, etc. Devuelve su id para la auditoría.
+   */
+  async verificarSupervisor(aut: AutorizacionDto, empresaId: string): Promise<string> {
+    let u: UsuarioFila;
+    try {
+      u = await this.verificarCredencial(aut.supervisorId, 'pin_hash', aut.pin);
+    } catch (e) {
+      if (e instanceof UnauthorizedException) throw new ForbiddenException('Autorización de supervisor inválida');
+      throw e;
+    }
+    if (u.empresa_id !== empresaId || (u.rol !== 'supervisor' && u.rol !== 'admin')) {
+      throw new ForbiddenException('Se requiere autorización de un supervisor');
+    }
+    return u.id;
+  }
+
+  // ---------------------------------------------------------------------
+
+  private async verificarCredencial(
+    usuarioId: string,
+    campo: 'pin_hash' | 'password_hash',
+    secreto: string,
+  ): Promise<UsuarioFila> {
+    const u = await this.db.one<UsuarioFila>(
+      `SELECT id, nombre, rol, empresa_id, activo, pin_hash, password_hash, intentos_fallidos, bloqueado_hasta
+         FROM usuario WHERE id = $1`,
+      [usuarioId],
+    );
+    if (!u || !u.activo || !u[campo]) {
+      await bcrypt.compare(secreto, HASH_RELLENO);
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+    if (u.bloqueado_hasta && new Date(u.bloqueado_hasta) > new Date()) {
+      throw new HttpException('Usuario bloqueado temporalmente por intentos fallidos', 423);
+    }
+
+    const correcto = await bcrypt.compare(secreto, u[campo]!);
+    if (!correcto) {
+      // Al llegar al límite se bloquea y el contador vuelve a cero
+      await this.db.query(
+        `UPDATE usuario
+            SET bloqueado_hasta   = CASE WHEN intentos_fallidos + 1 >= $2
+                                         THEN now() + make_interval(mins => $3) ELSE bloqueado_hasta END,
+                intentos_fallidos = CASE WHEN intentos_fallidos + 1 >= $2 THEN 0 ELSE intentos_fallidos + 1 END
+          WHERE id = $1`,
+        [u.id, MAX_INTENTOS, MINUTOS_BLOQUEO],
+      );
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+      await this.db.query(`UPDATE usuario SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1`, [u.id]);
+    }
+    return u;
+  }
+
+  private async resolverSede(db: Db, empresaId: string, sedeId?: string): Promise<string> {
+    if (sedeId) {
+      const s = await this.db.one(`SELECT id FROM sede WHERE id = $1 AND empresa_id = $2 AND activa`, [sedeId, empresaId], db);
+      if (!s) throw new BadRequestException('Sede no válida');
+      return s.id;
+    }
+    const sedes = await this.db.query(`SELECT id FROM sede WHERE empresa_id = $1 AND activa`, [empresaId], db);
+    if (sedes.length !== 1) throw new BadRequestException('Indica la sede en la que vas a trabajar');
+    return sedes[0].id;
+  }
+
+  private async crearSesion(
+    db: Db,
+    u: Pick<UsuarioFila, 'id' | 'nombre' | 'rol' | 'empresa_id'>,
+    sedeId: string | undefined,
+    dispositivo?: string,
+  ) {
+    const sede = await this.resolverSede(db, u.empresa_id, sedeId);
+    const secreto = randomBytes(32).toString('base64url');
+    const sesion = await this.db.one<{ id: string }>(
+      `INSERT INTO sesion (usuario_id, sede_id, token_hash, expira_en, dispositivo)
+       VALUES ($1, $2, $3, now() + make_interval(days => $4), $5) RETURNING id`,
+      [u.id, sede, sha256(secreto), config.refreshTtlDias, dispositivo?.slice(0, 200) ?? null],
+      db,
+    );
+    const accessToken = this.jwt.sign({
+      sub: u.id,
+      nombre: u.nombre,
+      rol: u.rol,
+      empresaId: u.empresa_id,
+      sedeId: sede,
+    });
+    return {
+      accessToken,
+      refreshToken: `${sesion!.id}.${secreto}`,
+      expiraEnSegundos: config.accessTtlSegundos,
+      usuario: { id: u.id, nombre: u.nombre, rol: u.rol, sedeId: sede },
+    };
+  }
+
+  private hashIgual(a: string, b: string) {
+    const ba = Buffer.from(a, 'hex');
+    const bb = Buffer.from(b, 'hex');
+    return ba.length === bb.length && timingSafeEqual(ba, bb);
+  }
+}

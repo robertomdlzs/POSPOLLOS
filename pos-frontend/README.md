@@ -1,0 +1,69 @@
+# POS Restaurante · Frontend
+
+Pantallas de caja, salón y cocina para el backend `pos-backend`.
+
+**Stack:** React 19 · Vite 8 · TypeScript 6 · Socket.IO. Sin librería de componentes: los estilos están en `src/estilos.css`.
+
+## Arranque
+
+Requisitos: Node 22.22.3+ (recomendado Node 24 LTS) y el backend corriendo en el puerto 3000.
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
+
+En desarrollo, Vite redirige `/api` y el WebSocket al backend, así que no hace falta configurar CORS.
+
+### Desde una tablet o celular
+
+Vite queda escuchando en la red local. En la terminal aparece una dirección tipo `http://192.168.1.20:5173`; ábrela desde la tablet conectada al mismo wifi. Si Windows pregunta por el firewall, permite el acceso en redes privadas.
+
+## Quién ve qué
+
+| Rol | Secciones |
+|---|---|
+| Mesero | Mesas y pedidos. Recibe un aviso cuando un plato sale de cocina |
+| Cajero | Mesas, pedidos, cobro y caja |
+| Cocina | Pantalla de comandas por estación, con pitido al llegar una nueva |
+| Supervisor y admin | Todo, y aprueba descuentos, anulaciones y retiros con su PIN |
+
+## Pantallas
+
+- **Ingreso:** toca tu nombre y escribe el PIN, con el teclado en pantalla o el físico.
+- **Mesas:** las libres sobresalen y las ocupadas se ven hundidas, con el estado del pedido y los minutos que lleva. A la derecha están los pedidos sin mesa (para llevar, mostrador y domicilio).
+- **Pedido:** categorías, productos con foto y la comanda tipo tiquete. Los productos simples se suman con − / + en la tarjeta; los que tienen opciones (término, adiciones) abren un selector que valida lo obligatorio. Lo nuevo queda marcado en ámbar hasta enviarlo a cocina.
+- **Cobro:** descuento (con PIN de supervisor), propina del 10% u otra, pagos divididos entre efectivo, tarjeta, Nequi, Daviplata o transferencia, y cálculo del cambio.
+- **Caja:** abrir turno con base, ventas y efectivo esperado en vivo, ingresos y retiros, y cierre con cuadre.
+- **Cocina:** riel de comandas por estación; Empezar → Listo → Entregado. Las que pasan de 15 minutos se marcan en rojo.
+
+## Fotos de productos
+
+Cada producto acepta una foto en `producto.imagen_url` (migración `003` del backend). Mientras no haya una pantalla de administración del menú, se carga con SQL:
+
+```sql
+UPDATE producto SET imagen_url = 'https://tu-servidor/fotos/hamburguesa.jpg' WHERE nombre = 'Hamburguesa clásica';
+```
+
+Sin foto, la tarjeta muestra la inicial del producto.
+
+## Producción
+
+```bash
+npm run build      # genera dist/
+```
+
+Sirve `dist/` en el mismo dominio que el backend (por ejemplo, con Nginx: `/` a `dist/` y `/api` y `/socket.io` al backend). Si van en dominios distintos, compila con `VITE_API_URL=https://api.tu-dominio.com` y agrega el dominio del frontend a `CORS_ORIGINS` del backend.
+
+## Decisiones
+
+- **Sesión:** el access token vive 15 minutos y se renueva solo; si varias peticiones lo necesitan a la vez, comparten una sola renovación. El refresh token se guarda en el dispositivo para no pedir el PIN en cada recarga. "Cambiar de usuario" lo revoca en el servidor.
+- **Sin cobros dobles:** cada pedido nuevo y cada cobro llevan una clave única que se conserva en los reintentos. Si la red falla justo al cobrar y la cajera vuelve a tocar el botón, el servidor devuelve la misma venta.
+- **Funciona por IP de red local:** `crypto.randomUUID` no existe fuera de https o localhost, así que las claves se generan con `getRandomValues` cuando hace falta.
+- **Tipografías empaquetadas** (Atkinson Hyperlegible e IBM Plex Mono): la interfaz se ve igual aunque el restaurante se quede sin internet.
+
+## Pendiente
+
+- Funcionamiento sin conexión (PWA con cola de sincronización).
+- Impresión de comandas y del tiquete de cobro mediante el agente local.
+- Administración del menú, usuarios y mesas desde la interfaz.

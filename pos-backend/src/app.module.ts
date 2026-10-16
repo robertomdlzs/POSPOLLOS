@@ -1,0 +1,41 @@
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AuditoriaModule } from './auditoria/auditoria.service';
+import { AuthModule } from './auth/auth.module';
+import { CajaModule } from './caja/caja.module';
+import { CocinaModule } from './cocina/cocina.module';
+import { JwtAuthGuard, RolesGuard } from './common/guards';
+import { config } from './config';
+import { DatabaseModule } from './database/database.module';
+import { MenuModule } from './menu/menu.module';
+import { PedidosModule } from './pedidos/pedidos.module';
+import { VentasModule } from './ventas/ventas.module';
+
+@Module({
+  imports: [
+    // Límite general por IP; las rutas de login tienen uno más estricto
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
+    JwtModule.register({
+      global: true,
+      secret: config.jwtSecret,
+      signOptions: { expiresIn: config.accessTtlSegundos },
+    }),
+    DatabaseModule,
+    AuditoriaModule,
+    AuthModule,
+    MenuModule,
+    CocinaModule,
+    PedidosModule,
+    CajaModule,
+    VentasModule,
+  ],
+  providers: [
+    // Orden: límite de peticiones → autenticación → roles. Todo es privado salvo @Publico()
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
+})
+export class AppModule {}

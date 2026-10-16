@@ -1,0 +1,44 @@
+{
+  "name": "pos-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend del POS para restaurantes (NestJS + PostgreSQL)",
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "db:migrar": "node scripts/migrar.mjs",
+    "db:semilla": "node scripts/semilla.mjs",
+    "test:flujo": "node tests/flujo.e2e.mjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.1.3",
+    "@nestjs/core": "^12.1.3",
+    "@nestjs/jwt": "^12.0.3",
+    "@nestjs/platform-express": "^12.1.3",
+    "@nestjs/platform-socket.io": "^12.1.3",
+    "@nestjs/throttler": "^6.7.1",
+    "@nestjs/websockets": "^12.1.3",
+    "bcryptjs": "^3.0.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "dotenv": "^18.0.8",
+    "helmet": "^8.3.0",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "socket.io": "^4.8.4"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.8",
+    "@nestjs/schematics": "^12.0.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "socket.io-client": "^4.8.4",
+    "typescript": "^6.0.3"
+  }
+}
