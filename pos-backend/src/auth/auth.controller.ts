@@ -1,6 +1,6 @@
-import { ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { ApiTags } from '@nestjs/swagger';
 import { Publico, UsuarioActual } from '../common/decoradores';
 import { INGRESOS_POR_IP, RutaIngreso } from '../common/limites';
 import type { UsuarioToken } from '../common/tipos';

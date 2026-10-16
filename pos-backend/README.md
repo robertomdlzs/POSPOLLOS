@@ -66,7 +66,8 @@ src/
   cocina/           KDS: pendientes, cambio de estado, gateway WebSocket
   caja/             abrir turno, ingresos/retiros, cierre con cuadre
   ventas/           cobro con pagos mixtos, anulación, descuento de inventario
-  menu/             menú con modificadores, mesas, stock
+  menu/             menú con modificadores y mesas
+  inventario/       stock por insumo
   auditoria/        bitácora inmutable
   common/           guards, decoradores, dinero en centavos, filtro de errores
 tests/flujo.e2e.mjs prueba de punta a punta

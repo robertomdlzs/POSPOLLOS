@@ -13,6 +13,7 @@ import { opcionesLogs } from './common/logs';
 import { RevocacionModule } from './common/revocacion';
 import { config } from './config';
 import { DatabaseModule } from './database/database.module';
+import { InventarioModule } from './inventario/inventario.module';
 import { MenuModule } from './menu/menu.module';
 import { PedidosModule } from './pedidos/pedidos.module';
 import { VentasModule } from './ventas/ventas.module';
@@ -32,6 +33,7 @@ import { VentasModule } from './ventas/ventas.module';
     AuditoriaModule,
     AuthModule,
     MenuModule,
+    InventarioModule,
     CocinaModule,
     PedidosModule,
     CajaModule,
