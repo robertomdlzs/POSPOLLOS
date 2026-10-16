@@ -1,6 +1,6 @@
 # POS Restaurante (POSPOLLOS)
 
-Punto de venta para restaurantes en Colombia: pedidos, cocina en tiempo real (KDS), caja, cobro con pagos mixtos e inventario por receta. Hoy sirve a un solo restaurante; la meta es venderlo como SaaS multi-restaurante. El porqué de cada decisión está en [HISTORIA.md](HISTORIA.md).
+Punto de venta para restaurantes en Colombia: pedidos, cocina en tiempo real (KDS), caja, cobro con pagos mixtos e inventario por receta. Hoy sirve a un solo restaurante; la meta es venderlo como SaaS multi-restaurante. El porqué de cada decisión está en [HISTORIA.md](HISTORIA.md), y el trabajo pendiente, por fases y en orden, en [PLAN.md](PLAN.md): al terminar una tarea, márcala `[x]` en el mismo commit.
 
 ## Estructura
 
