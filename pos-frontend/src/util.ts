@@ -2,14 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { mensajeError } from './api';
 import type { Rol, TipoServicio } from './tipos';
 
-const cop = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+const formato = (decimales: number) =>
+  new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+const copEnteros = formato(0);
+const copCentavos = formato(2);
 
-export const pesos = (v: string | number) => cop.format(Number(v));
+/** $ 25.000 sin centavos; si los hay, siempre con dos cifras: $ 25.000,50 */
+export const pesos = (v: string | number) => {
+  const n = Number(v);
+  return (Number.isInteger(Math.round(n * 100) / 100) ? copEnteros : copCentavos).format(n);
+};
 
 /**
  * Lee un monto escrito a mano en formato colombiano y lo deja con dos decimales

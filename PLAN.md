@@ -55,7 +55,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 - [x] **0.1.4 Cocina sin pedidos anulados** (S). `/cocina/pendientes` excluye los pedidos en estado `anulado`.
 - [x] **0.1.5 Montos máximos** (S). Agregar `@Max` a todos los DTO de dinero y traducir el error `22003` de PostgreSQL a un 400.
 - [x] **0.1.6 Revocación inmediata** (M). Al desactivar un usuario o cerrar sus sesiones, su access token deja de servir de inmediato: una lista de usuarios revocados en memoria, con caducidad de 15 minutos, que consultan el guard y el WebSocket. El socket se desconecta al vencer el token.
-- [ ] **0.1.7 Bloqueo por inactividad** (M). Tras N minutos sin tocar la pantalla (configurable, 3 por defecto), la tablet vuelve a pedir el PIN sin perder el pedido en curso.
+- [x] **0.1.7 Bloqueo por inactividad** (M). Tras N minutos sin tocar la pantalla (configurable, 3 por defecto), la tablet vuelve a pedir el PIN sin perder el pedido en curso.
 
 ### 0.2 Pruebas y CI
 
