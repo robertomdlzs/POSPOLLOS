@@ -67,7 +67,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 
 - [x] **0.3.1 Logs estructurados** (S). pino con un id por petición, el usuario y la sede, y sin datos sensibles (PIN, contraseña ni tokens).
 - [x] **0.3.2 OpenAPI** (M). `@nestjs/swagger` en `/api/docs`, solo fuera de producción o detrás del rol admin.
-- [ ] **0.3.3 Paginación común** (S). Un DTO `?limite=&cursor=` y una utilidad para paginar por cursor, usada desde ya en cualquier listado nuevo.
+- [x] **0.3.3 Paginación común** (S). Un DTO `?limite=&cursor=` y una utilidad para paginar por cursor, usada desde ya en cualquier listado nuevo.
 - [ ] **0.3.4 Separar el SQL de los controladores** (S). `menu.module.ts` pasa a la estructura controlador + servicio que usan los demás módulos.
 
 ### 0.4 Base técnica del frontend
