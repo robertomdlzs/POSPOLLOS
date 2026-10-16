@@ -7,6 +7,7 @@ const MAPA: Record<string, [number, string]> = {
   '23503': [400, 'Referencia a un registro que no existe'],
   '23514': [400, 'Los datos no cumplen las reglas del sistema'],
   '22P02': [400, 'Formato de dato inválido'],
+  '22003': [400, 'Un valor numérico se sale del rango permitido'],
 };
 
 @Catch()

@@ -9,11 +9,13 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { MONTO_MAXIMO } from '../common/dinero';
 import { AutorizacionDto } from '../common/dto';
 import { METODOS_PAGO } from '../common/tipos';
 
@@ -24,12 +26,14 @@ export class PagoDto {
   /** Lo que se abona a la cuenta con este método */
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
+  @Max(MONTO_MAXIMO, { message: '$property supera el máximo permitido' })
   monto: number;
 
   /** Solo efectivo: lo que entregó el cliente, para calcular el cambio */
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(MONTO_MAXIMO, { message: '$property supera el máximo permitido' })
   recibido?: number;
 
   @IsOptional()
@@ -53,11 +57,13 @@ export class CobrarDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(MONTO_MAXIMO, { message: '$property supera el máximo permitido' })
   descuento?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(MONTO_MAXIMO, { message: '$property supera el máximo permitido' })
   propina?: number;
 
   @IsArray()

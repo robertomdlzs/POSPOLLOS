@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { MONTO_MAXIMO } from '../common/dinero';
 import { AutorizacionDto } from '../common/dto';
 
 export class AbrirTurnoDto {
@@ -10,6 +11,7 @@ export class AbrirTurnoDto {
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(MONTO_MAXIMO, { message: '$property supera el máximo permitido' })
   montoInicial: number;
 }
 
@@ -19,6 +21,7 @@ export class MovimientoCajaDto {
 
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
+  @Max(MONTO_MAXIMO, { message: '$property supera el máximo permitido' })
   monto: number;
 
   @IsString()
@@ -36,6 +39,7 @@ export class MovimientoCajaDto {
 export class CerrarTurnoDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(MONTO_MAXIMO, { message: '$property supera el máximo permitido' })
   montoContado: number;
 
   @IsOptional()

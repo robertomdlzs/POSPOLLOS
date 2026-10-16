@@ -2,6 +2,12 @@
  * Todo el dinero se calcula en centavos (enteros) para evitar errores de
  * punto flotante. PostgreSQL devuelve numeric como string.
  */
+/**
+ * Tope para cualquier monto que mande el cliente. Ninguna cuenta de restaurante
+ * se le acerca, y deja margen de sobra bajo numeric(14,2).
+ */
+export const MONTO_MAXIMO = 1_000_000_000;
+
 export const aCentavos = (v: string | number): number => Math.round(Number(v) * 100);
 export const aPesos = (c: number): string => (c / 100).toFixed(2);
 
