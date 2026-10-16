@@ -34,8 +34,8 @@ npm run build            # tsc --noEmit + vite build
 
 - **SQL directo con `pg`, sin ORM.** El esquema depende de triggers, CHECKs y `FOR UPDATE`. Los cambios de esquema van en una migración nueva numerada en `pos-backend/db/migraciones/` y nunca se edita una ya aplicada.
 - **Dinero en centavos enteros** (`common/dinero.ts`). Los precios del menú son finales, con el impuesto incluido. El servidor calcula los totales; al cliente nunca se le cree.
-- **Todo es privado por defecto:** las rutas públicas llevan `@Publico()` y los roles se declaran con `@Roles(...)`. El admin siempre pasa.
-- **Acciones sensibles** (descuentos, anular lo que ya está en cocina, anular ventas, retiros de caja) exigen PIN de supervisor y quedan en `auditoria`, una tabla que la base no deja editar ni borrar. El PIN nunca se guarda en la auditoría.
+- **Todo es privado por defecto, y se autoriza por permisos, no por rol:** las rutas públicas llevan `@Publico()`; las demás declaran `@RequierePermiso(...)` con códigos del catálogo `pos-backend/src/common/permisos.ts` (en el frontend, `usePuede()`). Nunca se compara el nombre de un rol. Un permiso nuevo va en el catálogo de los dos lados y, si un rol de fábrica debe tenerlo, en una migración. El admin tiene siempre todos.
+- **Acciones sensibles** (descuentos, anular lo que ya está en cocina, anular ventas, retiros de caja) exigen el permiso de la acción o la aprobación con PIN de alguien que lo tenga (`verificarAutorizacion`), y quedan en `auditoria`, una tabla que la base no deja editar ni borrar. El PIN nunca se guarda en la auditoría.
 - **Idempotencia:** crear pedidos y cobrar llevan `idempotencyKey`, que genera el cliente y se conserva en los reintentos.
 - **Multi-tenant a futuro:** las tablas raíz llevan `empresa_id`/`sede_id`, y las consultas filtran siempre por la empresa o la sede del token.
 - **TypeScript 6 con `isolatedModules`:** los tipos usados en firmas con decoradores se importan con `import type`.
