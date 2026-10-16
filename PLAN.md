@@ -98,7 +98,7 @@ Hoy los roles son un `ENUM` fijo. Se pasa a permisos por acción y a roles que d
 ### 1.2 Usuarios
 
 - [ ] **1.2.1 API de usuarios** (M). Listar, crear, editar, desactivar, restablecer el PIN, asignar rol por sede y cerrar todas sus sesiones. Todo queda en la auditoría.
-- [ ] **1.2.2 Política de PIN** (S). Prohibir PIN triviales (0000, 1234, repetidos o secuencias) y PIN iguales dentro de la misma sede. Los usuarios con permisos de administración entran con contraseña y no pueden usar solo PIN.
+- [x] **1.2.2 Política de PIN** (S). Prohibir PIN triviales (repetidos, secuencias como 1234 o 4321, alternados como 1212) y contraseñas de menos de 10 caracteres sin letras y números. Quien tenga permisos de administración entra con correo y contraseña, no con PIN. *Cambio sobre lo planeado:* no se exige que el PIN sea único en la sede, porque el aviso "ese PIN ya lo usa alguien" le revelaría a quien administra el PIN de otra persona.
 - [ ] **1.2.3 Pantallas de usuarios y roles** (L). Lista, ficha del usuario y editor de roles con casillas de permisos agrupadas por área.
 
 ### 1.3 Menú

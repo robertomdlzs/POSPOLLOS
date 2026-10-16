@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { AuditoriaService } from '../auditoria/auditoria.service';
+import { exigeContrasena } from '../common/credenciales';
 import { AutorizacionDto } from '../common/dto';
 import { PERMISOS, permisosDeRol, type Permiso } from '../common/permisos';
 import { RevocacionService } from '../common/revocacion';
@@ -55,10 +56,12 @@ export class AuthService {
   /**
    * Lista para la pantalla de "toca tu nombre y escribe tu PIN": quienes tienen
    * PIN y un rol en alguna sede. rolClave es la del rol de fábrica, o null.
+   * conContrasena avisa que esa persona entra con correo y contraseña.
    */
-  usuariosConPin() {
-    return this.db.query(
-      `SELECT DISTINCT ON (u.nombre, u.id) u.id, u.nombre, r.nombre AS "rolNombre", r.clave AS "rolClave"
+  async usuariosConPin() {
+    const filas = await this.db.query<{ id: string; nombre: string; rolNombre: string; rolClave: string | null; permisos: string[] }>(
+      `SELECT DISTINCT ON (u.nombre, u.id) u.id, u.nombre, r.nombre AS "rolNombre", r.clave AS "rolClave",
+              ARRAY(SELECT permiso FROM rol_permiso WHERE rol_id = r.id) AS permisos
          FROM usuario u
          JOIN usuario_sede_rol x ON x.usuario_id = u.id
          JOIN sede s ON s.id = x.sede_id AND s.activa
@@ -66,6 +69,7 @@ export class AuthService {
         WHERE u.activo AND u.pin_hash IS NOT NULL
         ORDER BY u.nombre, u.id, s.creado_en`,
     );
+    return filas.map(({ permisos, ...u }) => ({ ...u, conContrasena: exigeContrasena(permisosDeRol(u.rolClave, permisos)) }));
   }
 
   /** Quienes pueden aprobar con su PIN una acción que exige `permiso`, en la sede de quien pide */
@@ -87,7 +91,7 @@ export class AuthService {
 
   async loginPin(dto: LoginPinDto, dispositivo?: string) {
     const u = await this.verificarCredencial(dto.usuarioId, 'pin_hash', dto.pin);
-    return this.db.transaction((c) => this.crearSesion(c, u, dto.sedeId, dispositivo));
+    return this.db.transaction((c) => this.crearSesion(c, u, dto.sedeId, dispositivo, 'pin'));
   }
 
   async loginPassword(dto: LoginPasswordDto, dispositivo?: string) {
@@ -304,10 +308,15 @@ export class AuthService {
     u: Pick<UsuarioFila, 'id' | 'nombre' | 'empresa_id'>,
     sedeId: string | undefined,
     dispositivo?: string,
+    /** 'pin' para el ingreso rápido: no vale para roles que configuran el restaurante */
+    via?: 'pin',
   ) {
     const sede = await this.resolverSede(db, u.empresa_id, sedeId);
     const rol = await this.rolEnSede(u.id, sede, db);
     if (!rol) throw new ForbiddenException('No tienes un rol asignado en esta sede');
+    if (via === 'pin' && exigeContrasena(rol.permisos)) {
+      throw new ForbiddenException('Con tu rol se entra con correo y contraseña');
+    }
     const secreto = randomBytes(32).toString('base64url');
     const sesion = await this.db.one<{ id: string }>(
       `INSERT INTO sesion (usuario_id, sede_id, token_hash, expira_en, dispositivo)

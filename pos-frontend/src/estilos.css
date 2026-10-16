@@ -458,6 +458,20 @@ input::placeholder { color: var(--tinta-3); }
 .ingreso-saludo { font-size: 1.2rem; text-align: center; }
 .ingreso-vacio { color: #a9b6c3; font-size: 1.2rem; }
 .ingreso-der .error { color: #ff9b91; min-height: 1.4em; }
+.ingreso-correo { display: grid; gap: 1rem; width: min(100%, 360px); }
+.ingreso-correo label { color: #dbe3ea; }
+.ingreso-correo input { background: var(--tinta); box-shadow: var(--hundido-osc); color: #fff; }
+.ingreso-correo input:focus { box-shadow: var(--hundido-osc), 0 0 0 3px #7fb2ee; }
+.enlace-claro {
+  justify-self: center;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  background: none;
+  color: #a9c6e8;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 /* --------------------------------------------------------------- pin pad */
 

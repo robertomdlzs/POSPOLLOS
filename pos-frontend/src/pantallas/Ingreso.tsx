@@ -21,6 +21,8 @@ function Reloj() {
 export function Ingreso() {
   const { datos: usuarios, error: errorCarga, recargar } = useDatos(CLAVES.usuarios, () => api<UsuarioLista[]>('GET', '/auth/usuarios'));
   const [elegido, setElegido] = useState<UsuarioLista | null>(null);
+  // Sin elegir a nadie también se puede entrar con correo (quien no tiene PIN)
+  const [conCorreo, setConCorreo] = useState(false);
   const [pin, setPin] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export function Ingreso() {
               className={`persona ${elegido?.id === u.id ? 'activa' : ''}`}
               onClick={() => {
                 setElegido(u);
+                setConCorreo(u.conContrasena);
                 setPin('');
                 setError(null);
               }}
@@ -73,7 +76,15 @@ export function Ingreso() {
         </div>
       </section>
       <section className="ingreso-der">
-        {elegido ? (
+        {conCorreo ? (
+          <IngresoCorreo
+            nombre={elegido?.nombre}
+            onVolver={() => {
+              setConCorreo(false);
+              setElegido(null);
+            }}
+          />
+        ) : elegido ? (
           <>
             <p className="ingreso-saludo">
               Hola, <strong>{elegido.nombre.split(' ')[0]}</strong>. Escribe tu PIN.
@@ -82,9 +93,66 @@ export function Ingreso() {
             <p className={`error ${error ? '' : 'invisible'}`}>{error ?? '.'}</p>
           </>
         ) : (
-          <p className="ingreso-vacio">Toca tu nombre para entrar.</p>
+          <>
+            <p className="ingreso-vacio">Toca tu nombre para entrar.</p>
+            <button className="enlace-claro" onClick={() => setConCorreo(true)}>
+              Entrar con correo y contraseña
+            </button>
+          </>
         )}
       </section>
     </main>
+  );
+}
+
+/** Para la administración: correo y contraseña en lugar de PIN */
+function IngresoCorreo({ nombre, onVolver }: { nombre?: string; onVolver: () => void }) {
+  const [correo, setCorreo] = useState('');
+  const [clave, setClave] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <form
+      className="ingreso-correo"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setOcupado(true);
+        setError(null);
+        try {
+          fijarSesion(await api<Sesion>('POST', '/auth/login', { email: correo.trim(), password: clave }));
+        } catch (err) {
+          setError(err instanceof ApiError && err.status === 401 ? 'Correo o contraseña incorrectos' : mensajeError(err));
+          setClave('');
+        } finally {
+          setOcupado(false);
+        }
+      }}
+    >
+      <p className="ingreso-saludo">
+        {nombre ? (
+          <>
+            Hola, <strong>{nombre.split(' ')[0]}</strong>. Tu rol entra con correo y contraseña.
+          </>
+        ) : (
+          'Entra con tu correo y contraseña.'
+        )}
+      </p>
+      <label>
+        Correo
+        <input type="email" autoComplete="username" value={correo} onChange={(e) => setCorreo(e.target.value)} required autoFocus />
+      </label>
+      <label>
+        Contraseña
+        <input type="password" autoComplete="current-password" value={clave} onChange={(e) => setClave(e.target.value)} required />
+      </label>
+      <p className={`error ${error ? '' : 'invisible'}`}>{error ?? '.'}</p>
+      <button className="boton boton-primario boton-grande" disabled={ocupado || !correo || !clave}>
+        {ocupado ? 'Entrando…' : 'Entrar'}
+      </button>
+      <button type="button" className="enlace-claro" onClick={onVolver}>
+        Volver al PIN
+      </button>
+    </form>
   );
 }

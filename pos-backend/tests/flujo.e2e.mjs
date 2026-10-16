@@ -51,6 +51,16 @@ const cocina = await login('cocina', '3333');
 const supervisora = quien('supervisor');
 ok('Login por PIN de cajero, mesera y cocina');
 
+const adminLista = quien('admin');
+assert.equal(adminLista.conContrasena, true);
+esperar(403, await api('POST', '/auth/pin', { body: { usuarioId: adminLista.id, pin: '0000' } }), 'admin con PIN');
+const admin = await api('POST', '/auth/login', {
+  body: { email: 'admin@demo.co', password: process.env.SEED_ADMIN_PASSWORD ?? 'CambiaEsto123!' },
+});
+esperar(200, admin, 'admin con contraseña');
+assert.ok(admin.data.usuario.permisos.includes('usuario.editar'));
+ok(`El admin no entra con PIN, sí con correo y contraseña (${admin.data.usuario.permisos.length} permisos)`);
+
 esperar(401, await api('GET', '/pedidos'), 'sin token');
 esperar(403, await api('GET', '/pedidos', { token: cocina.accessToken }), 'cocina no ve pedidos');
 ok('Rutas protegidas por token y por rol');

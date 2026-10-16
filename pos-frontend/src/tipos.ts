@@ -4,6 +4,8 @@ export interface UsuarioLista {
   id: string;
   nombre: string;
   rolNombre: string;
+  /** Su rol configura el restaurante: entra con correo y contraseña, no con PIN */
+  conContrasena: boolean;
 }
 
 export interface Sesion {
