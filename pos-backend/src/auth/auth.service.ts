@@ -54,12 +54,11 @@ export class AuthService {
 
   /**
    * Lista para la pantalla de "toca tu nombre y escribe tu PIN": quienes tienen
-   * PIN y un rol en alguna sede. `rol` es la clave del rol de fábrica (o null);
-   * se conserva mientras el frontend pasa a usar rolNombre y permisos.
+   * PIN y un rol en alguna sede. rolClave es la del rol de fábrica, o null.
    */
   usuariosConPin() {
     return this.db.query(
-      `SELECT DISTINCT ON (u.nombre, u.id) u.id, u.nombre, r.nombre AS "rolNombre", r.clave AS "rolClave", r.clave AS rol
+      `SELECT DISTINCT ON (u.nombre, u.id) u.id, u.nombre, r.nombre AS "rolNombre", r.clave AS "rolClave"
          FROM usuario u
          JOIN usuario_sede_rol x ON x.usuario_id = u.id
          JOIN sede s ON s.id = x.sede_id AND s.activa
@@ -335,8 +334,6 @@ export class AuthService {
         id: u.id,
         nombre: u.nombre,
         rolNombre: rol.nombre,
-        // Clave del rol de fábrica; se conserva mientras el frontend pasa a usar permisos
-        rol: rol.clave,
         permisos: rol.permisos,
         sedeId: sede,
       },

@@ -79,30 +79,32 @@ Con el servidor corriendo, la documentación interactiva (OpenAPI) está en http
 
 Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, salvo las marcadas como públicas.
 
-| Método | Ruta | Roles | Para qué |
+| Método | Ruta | Permiso | Para qué |
 |---|---|---|---|
-| GET | `/auth/usuarios` | pública | Lista para "toca tu nombre y escribe tu PIN" |
-| POST | `/auth/pin` | pública | `{ usuarioId, pin }` → tokens |
+| GET | `/auth/usuarios` | pública | Lista para "toca tu nombre y escribe tu PIN", con el nombre del rol |
+| POST | `/auth/pin` | pública | `{ usuarioId, pin }` → tokens y permisos de la sesión |
 | POST | `/auth/login` | pública | `{ email, password }` → tokens |
-| POST | `/auth/refresh` | pública | `{ refreshToken }` → tokens nuevos |
+| POST | `/auth/refresh` | pública | `{ refreshToken }` → tokens nuevos (relee los permisos) |
 | POST | `/auth/logout` | pública | Revoca el refresh token |
-| GET | `/menu` · `/mesas` | todos | Menú con modificadores · mesas con su pedido abierto |
-| POST | `/pedidos` | mesero, cajero, supervisor | Crear pedido (con `idempotencyKey`) |
+| POST | `/auth/desbloquear` | con sesión | `{ pin }` para volver tras el bloqueo por inactividad |
+| GET | `/auth/autorizadores?permiso=` | con sesión | Quiénes pueden aprobar con su PIN una acción |
+| GET | `/menu` · `/mesas` | con sesión | Menú con modificadores · mesas con su pedido abierto |
+| POST | `/pedidos` | `pedido.tomar` | Crear pedido (con `idempotencyKey`) |
 | GET | `/pedidos` · `/pedidos/:id` | ídem | Pedidos abiertos · detalle con totales |
 | POST | `/pedidos/:id/items` | ídem | Agregar productos (con `idempotencyKey` por tanda) |
 | POST | `/pedidos/:id/enviar-cocina` | ídem | Envía lo nuevo y avisa por WebSocket |
-| POST | `/pedidos/:id/items/:itemId/anular` | ídem | Si ya está en cocina, pide PIN de supervisor |
+| POST | `/pedidos/:id/items/:itemId/anular` | ídem | Si ya está en cocina, exige `pedido.anular_enviado` o la aprobación de alguien que lo tenga |
 | POST | `/pedidos/:id/cerrar-vacio` | ídem | Cierra un pedido con todo anulado y libera la mesa |
-| GET | `/cocina/pendientes?estacionId=` | cocina, mesero, supervisor | Cola de la pantalla de cocina |
+| GET | `/cocina/pendientes?estacionId=` | `cocina.operar` | Cola de la pantalla de cocina |
 | PATCH | `/cocina/items/:id` | ídem | `{ estado: preparando \| listo \| entregado }` |
-| POST | `/caja/turnos` | cajero, supervisor | Abrir turno con base |
-| GET | `/caja/turnos/actual` | ídem | Turno abierto y resumen |
-| POST | `/caja/turnos/:id/movimientos` | ídem | Ingreso o retiro (el retiro pide supervisor) |
+| POST | `/caja/turnos` | `caja.operar` | Abrir turno con base |
+| GET | `/caja/turnos/actual` | ídem | Turno abierto y resumen; sin `caja.ver_esperado`, a ciegas |
+| POST | `/caja/turnos/:id/movimientos` | ídem | Ingreso o retiro; el retiro exige `caja.retiro` o su aprobación |
 | POST | `/caja/turnos/:id/cerrar` | ídem | Cuadre: esperado vs. contado |
-| POST | `/ventas/cobrar` | cajero, supervisor | Cobro con pagos mixtos, descuento y propina |
+| POST | `/ventas/cobrar` | `venta.cobrar` | Cobro con pagos mixtos y propina; el descuento exige `venta.descuento` o su aprobación |
 | GET | `/ventas/:id` | ídem | Venta con pagos y cambio |
-| POST | `/ventas/:id/anular` | ídem | Requiere PIN de supervisor y turno abierto |
-| GET | `/inventario/stock` | cajero, supervisor | Stock por insumo y alerta de mínimo |
+| POST | `/ventas/:id/anular` | ídem | Exige la aprobación de alguien con `venta.anular` y turno abierto |
+| GET | `/inventario/stock` | `inventario.ver` | Stock por insumo y alerta de mínimo |
 
 ### WebSocket de cocina
 
@@ -117,10 +119,11 @@ Cada conexión entra a la sala de su sede, así que una sede nunca ve comandas d
 
 ## Decisiones de seguridad
 
-- **Todo es privado por defecto.** Los guards globales exigen token y rol; solo `@Publico()` abre una ruta.
+- **Todo es privado por defecto.** Los guards globales exigen token y, donde se declara con `@RequierePermiso()`, un permiso; solo `@Publico()` abre una ruta.
+- **Permisos por acción, no roles fijos.** Cada empresa tiene roles (cinco de fábrica más los que cree) y cada rol, una lista de permisos del catálogo de `src/common/permisos.ts`. Un usuario puede tener un rol distinto en cada sede. El admin tiene siempre todos los permisos. El token lleva los permisos de la sesión; un cambio de rol se aplica al renovarlo (15 min como máximo).
 - **Access token de 15 min y refresh token de un solo uso.** El refresh se guarda como hash SHA-256. Si alguien reutiliza uno ya usado, se cierran todas las sesiones de ese usuario y queda en auditoría. Cerrar sesión o detectar un robo corta al instante el access token y el WebSocket de esa sesión (o de todas las del usuario), sin esperar los 15 minutos; la lista de revocados vive en memoria, así que con varias instancias habrá que pasarla a Redis.
 - **Fuerza bruta:** 5 PIN errados bloquean al usuario 5 minutos (423), y los ingresos tienen dos límites (429): 10 intentos por minuto para cada usuario y 60 por minuto desde una misma IP sumando todos. Detrás de Nginx o Caddy hay que fijar `TRUST_PROXY` (por ejemplo `loopback`); si no, todas las peticiones parecen venir de la misma IP. En las autorizaciones de supervisor, los 5 intentos fallidos bloquean a quien las pide, no al supervisor, y cada fallo queda en auditoría.
-- **Acciones sensibles con PIN de supervisor:** descuentos, anular ítems ya enviados a cocina, anular ventas y retiros de caja. Todo queda en `auditoria`, que la base de datos no deja editar ni borrar.
+- **Acciones sensibles con aprobación por PIN:** descuentos, anular ítems ya enviados a cocina, anular ventas y retiros de caja. Las aprueba quien tenga el permiso de esa acción en la sede. Todo queda en `auditoria`, que la base de datos no deja editar ni borrar.
 - **El servidor calcula los totales.** El cliente solo dice qué productos y cuánto paga con cada método; si no cuadra, no cobra.
 - **Idempotencia** al crear pedidos, al agregarles productos y al cobrar: un reintento por mala señal no duplica nada.
 - **Bloqueos de fila** (`FOR UPDATE`) para que dos personas no cobren el mismo pedido ni abran la misma mesa a la vez.

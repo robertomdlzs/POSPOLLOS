@@ -31,11 +31,11 @@ if (rUsuarios.status !== 200 || !Array.isArray(rUsuarios.data)) {
   process.exit(1);
 }
 const usuarios = rUsuarios.data;
-if (!['cajero', 'mesero', 'cocina', 'supervisor'].every((r) => usuarios.some((u) => u.rol === r))) {
+if (!['cajero', 'mesero', 'cocina', 'supervisor'].every((r) => usuarios.some((u) => u.rolClave === r))) {
   console.error('\n✘ Faltan los usuarios de ejemplo. Corre "npm run db:semilla" sobre una base recién migrada.');
   process.exit(1);
 }
-const quien = (rol) => usuarios.find((u) => u.rol === rol);
+const quien = (clave) => usuarios.find((u) => u.rolClave === clave);
 const login = async (rol, pin) => {
   const r = await api('POST', '/auth/pin', { body: { usuarioId: quien(rol).id, pin } });
   esperar(200, r, `login ${rol}`);
