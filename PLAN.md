@@ -18,7 +18,7 @@ Escrito el 16 de octubre de 2026, a partir del análisis general del sistema. Cu
 | 0 | Cimientos: fallos abiertos, pruebas, CI, router en el frontend | 2 | |
 | 1 | Permisos configurables y panel de administración | 4–5 | El restaurante se configura sin SQL |
 | 2 | Reportes y cierre del día | 2 | |
-| 3 | Facturación electrónica DIAN | 3–4 | Cumple la ley |
+| 3 | ~~Facturación electrónica DIAN~~: fuera del alcance de este software | — | |
 | 4 | Impresión y dispositivos | 2 | |
 | 5 | Producción: despliegue, respaldos, monitoreo | 1–2 | **Primer restaurante real** |
 | 6 | Operación avanzada de salón y supervisión | 3 | |
@@ -28,7 +28,7 @@ Escrito el 16 de octubre de 2026, a partir del análisis general del sistema. Cu
 | 10 | SaaS multi-restaurante | 5–6 | **Se vende como suscripción** |
 | 11 | Integraciones y extras | según demanda | |
 
-En total son unos 9 a 11 meses hasta la fase 10. El hito que importa primero es el de la fase 5, alrededor de 3 meses y medio.
+En total son unos 8 a 10 meses hasta la fase 10. El hito que importa primero es el de la fase 5, alrededor de 3 meses.
 
 ## Decisiones que necesita Roberto
 
@@ -36,7 +36,6 @@ Conviene tenerlas antes de la fase en la que se usan:
 
 | Decisión | Se necesita en | Opciones |
 |---|---|---|
-| Proveedor de facturación DIAN | Fase 3 (empezar a cotizar ya) | Evaluar precio por documento, API, soporte del documento equivalente POS, notas crédito y contingencia. Candidatos a cotizar: The Factory HKA, Carvajal, Facture, Siigo, Alegra. |
 | Dónde alojar el sistema | Fase 5 | VPS propio (más barato, más mantenimiento) o base de datos administrada (DigitalOcean, AWS RDS, Supabase) con respaldos incluidos. |
 | Impresoras de prueba | Fase 4 | Una térmica ESC/POS de 80 mm por USB o red (por ejemplo Epson TM-T20 o una genérica) y un cajón monedero. |
 | Planes y precios del SaaS | Fase 10 | Qué módulos van en cada plan. |
@@ -133,19 +132,14 @@ Hoy los roles son un `ENUM` fijo. Se pasa a permisos por acción y a roles que d
 
 ---
 
-## Fase 3: Facturación electrónica DIAN (≈ 3–4 semanas)
+## Fase 3: Facturación electrónica DIAN (fuera del alcance)
 
-Se empieza a cotizar el proveedor desde la fase 0, porque abrir la cuenta y obtener las credenciales de prueba toma tiempo.
+Decisión de Roberto del 16 de octubre de 2026: la facturación electrónica no se construye en este software. Las tareas que tenía esta fase (resoluciones y consecutivos, datos del comprador, cola de envío al proveedor, notas crédito, contingencia y representación gráfica) quedan fuera del plan. Se conserva la numeración de las demás fases para no cambiar las referencias.
 
-- [ ] **3.1 Elegir el proveedor y obtener su ambiente de pruebas** (S, sin código). Contrato, credenciales de prueba y documentación de la API.
-- [ ] **3.2 Resoluciones y consecutivos** (M). Migración con la tabla `resolucion_facturacion` (prefijo, rango, vigencia y tipo de documento) y un consecutivo sin saltos, tomado con `FOR UPDATE` dentro de la transacción del cobro. Aviso cuando el rango o la vigencia se estén agotando.
-- [ ] **3.3 Datos del comprador** (M). Consumidor final por defecto, o cédula/NIT, nombre y correo. Tabla de clientes mínima, que la fase 9 amplía.
-- [ ] **3.4 Cola de envío** (L). Una tabla de salida (`factura_cola`) que se llena en la misma transacción del cobro, y un proceso que envía al proveedor con reintentos y espera creciente. Guarda el CUFE, el número, el XML y el estado. El cobro nunca espera al proveedor.
-- [ ] **3.5 Adaptador del proveedor** (L). Una interfaz `ProveedorFacturacion` con una implementación para el proveedor elegido, para poder cambiarlo sin tocar el resto.
-- [ ] **3.6 Notas crédito** (L). Anular una venta ya facturada o de un turno cerrado genera una nota crédito total o parcial, con su devolución de inventario y de caja.
-- [ ] **3.7 Contingencia** (M). Si el proveedor o internet no responden, la venta se emite en contingencia y se transmite después, según lo que exija la DIAN para el documento equivalente POS. Revisar con el proveedor y el contador.
-- [ ] **3.8 Representación gráfica** (M). Tiquete con el código QR y el CUFE, y envío al correo del cliente.
-- [ ] **3.9 Pantalla de seguimiento** (S). Documentos pendientes, rechazados y en contingencia, con un botón para reintentar.
+Consecuencias que hay que tener presentes:
+
+- Las columnas `venta.factura_*` y el valor `factura_estado = 'pendiente'` siguen en el esquema, sin uso.
+- Sin notas crédito, una venta de un turno ya cerrado sigue sin poder anularse desde el sistema.
 
 ---
 
@@ -161,14 +155,14 @@ Se empieza a cotizar el proveedor desde la fase 0, porque abrir la cuenta y obte
 
 ## Fase 5: Producción (≈ 1–2 semanas) → primer restaurante real
 
-- [ ] **5.1 Imágenes Docker** (M). Backend, frontend servido con Caddy (HTTPS automático) y proceso de facturación. Un `docker-compose.prod.yml`.
+- [ ] **5.1 Imágenes Docker** (M). Backend, y frontend servido con Caddy (HTTPS automático). Un `docker-compose.prod.yml`.
 - [ ] **5.2 Ambientes** (M). Pruebas (`staging`) y producción, con variables y secretos fuera del repositorio. Despliegue automático a pruebas en cada merge y a producción con una etiqueta de versión.
 - [ ] **5.3 Migraciones en el despliegue** (S). Se aplican antes de levantar la nueva versión, y el despliegue se detiene si una falla.
 - [ ] **5.4 Respaldos** (M). Respaldo automático diario más recuperación a un punto en el tiempo, guardados fuera del servidor. **Hacer una restauración de prueba** y documentar los pasos.
 - [ ] **5.5 Monitoreo** (M). Sentry en backend y frontend, una verificación de salud (`/api/salud`), alertas si el servidor cae o si una sede no vende en su horario, y métricas básicas.
 - [ ] **5.6 Seguridad de producción** (M). Doble factor para quien tenga permisos de administración. Encabezados de seguridad revisados. Límites de peticiones probados detrás del proxy. Revisión de dependencias (`npm audit`) en CI.
 - [ ] **5.7 Datos personales** (S). Política de tratamiento de datos y autorización del cliente, por la Ley 1581 de 2012. Revisar con un abogado.
-- [ ] **5.8 Instalación de un restaurante nuevo** (M). Un guion o asistente que crea la empresa, la sede, el admin, la resolución de facturación y las impresoras, más una guía de instalación para el restaurante.
+- [ ] **5.8 Instalación de un restaurante nuevo** (M). Un guion o asistente que crea la empresa, la sede, el admin y las impresoras, más una guía de instalación para el restaurante.
 - [ ] **5.9 Piloto** (sin código). Un restaurante real durante 2 a 4 semanas, con un canal directo para reportar problemas.
 
 ---
@@ -194,7 +188,7 @@ Se empieza a cotizar el proveedor desde la fase 0, porque abrir la cuenta y obte
 - [ ] **7.2** Copia local del menú, las mesas y los usuarios en IndexedDB, con verificación del PIN sin conexión mediante un hash local de vida limitada (L).
 - [ ] **7.3** Cola local de operaciones (crear pedido, agregar, enviar a cocina, cobrar), cada una con su clave de idempotencia (L).
 - [ ] **7.4** Sincronización al volver la red, en orden, con reglas de conflicto. Por ejemplo, si dos tablets abrieron la misma mesa sin conexión, el supervisor decide (L).
-- [ ] **7.5** Numeración provisional sin conexión y facturación en contingencia (conecta con 3.7) (M).
+- [ ] **7.5** Numeración provisional de pedidos y ventas creados sin conexión (M).
 - [ ] **7.6** Modo de servidor local opcional, para restaurantes con muchos cortes: el agente de la fase 4 también sirve de punto de encuentro de la red local, para que cocina y meseros sigan conectados entre sí sin internet. Evaluar después del piloto (L).
 - [ ] **7.7** Indicador claro de "sin conexión, N operaciones pendientes" en todas las pantallas (S).
 
@@ -232,7 +226,7 @@ Se empieza a cotizar el proveedor desde la fase 0, porque abrir la cuenta y obte
 - [ ] **10.7** Cobro de la suscripción con una pasarela (Wompi, PayU o similar) (L).
 - [ ] **10.8** Registro de un restaurante nuevo por su cuenta, con un asistente de configuración inicial (L).
 - [ ] **10.9** Exportación completa de los datos de un restaurante (M).
-- [ ] **10.10** Escalar: adaptador Redis para Socket.IO, varias instancias del backend y colas para facturación y reportes (M).
+- [ ] **10.10** Escalar: adaptador Redis para Socket.IO, varias instancias del backend y colas para reportes y trabajos pesados (M).
 - [ ] **10.11** Versionado de la API (`/api/v1`) antes de abrirla a terceros (S).
 
 ## Fase 11: Integraciones y extras (según demanda)
