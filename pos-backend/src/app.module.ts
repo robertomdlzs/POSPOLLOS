@@ -16,6 +16,7 @@ import { DatabaseModule } from './database/database.module';
 import { InventarioModule } from './inventario/inventario.module';
 import { MenuModule } from './menu/menu.module';
 import { PedidosModule } from './pedidos/pedidos.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 import { VentasModule } from './ventas/ventas.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { VentasModule } from './ventas/ventas.module';
     PedidosModule,
     CajaModule,
     VentasModule,
+    UsuariosModule,
   ],
   providers: [
     // Orden: límite de peticiones → autenticación → roles. Todo es privado salvo @Publico()

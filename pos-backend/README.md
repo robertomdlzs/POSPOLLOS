@@ -105,6 +105,12 @@ Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, 
 | GET | `/ventas/:id` | ídem | Venta con pagos y cambio |
 | POST | `/ventas/:id/anular` | ídem | Exige la aprobación de alguien con `venta.anular` y turno abierto |
 | GET | `/inventario/stock` | `inventario.ver` | Stock por insumo y alerta de mínimo |
+| GET | `/usuarios?buscar=&limite=&cursor=` | `usuario.editar` | Usuarios con sus roles por sede, paginados |
+| POST · PATCH | `/usuarios` · `/usuarios/:id` | ídem | Crear; cambiar nombre, correo o activo (desactivar cierra sus sesiones) |
+| PUT | `/usuarios/:id/pin` · `/usuarios/:id/contrasena` · `/usuarios/:id/roles` | ídem | PIN y contraseña con política; roles por sede, aplicados al momento |
+| POST | `/usuarios/:id/cerrar-sesiones` | ídem | Cierra todas sus sesiones |
+| GET | `/roles` · `/roles/permisos` | `usuario.editar` o `rol.editar` | Roles con permisos y cuántos los usan · catálogo de permisos |
+| POST · PATCH · DELETE | `/roles` · `/roles/:id` | `rol.editar` | Crear, editar y borrar roles propios |
 
 ### WebSocket de cocina
 
@@ -123,6 +129,7 @@ Cada conexión entra a la sala de su sede, así que una sede nunca ve comandas d
 - **Permisos por acción, no roles fijos.** Cada empresa tiene roles (cinco de fábrica más los que cree) y cada rol, una lista de permisos del catálogo de `src/common/permisos.ts`. Un usuario puede tener un rol distinto en cada sede. El admin tiene siempre todos los permisos. El token lleva los permisos de la sesión; un cambio de rol se aplica al renovarlo (15 min como máximo).
 - **Access token de 15 min y refresh token de un solo uso.** El refresh se guarda como hash SHA-256. Si alguien reutiliza uno ya usado, se cierran todas las sesiones de ese usuario y queda en auditoría. Cerrar sesión o detectar un robo corta al instante el access token y el WebSocket de esa sesión (o de todas las del usuario), sin esperar los 15 minutos; la lista de revocados vive en memoria, así que con varias instancias habrá que pasarla a Redis.
 - **Fuerza bruta:** 5 PIN errados bloquean al usuario 5 minutos (423), y los ingresos tienen dos límites (429): 10 intentos por minuto para cada usuario y 60 por minuto desde una misma IP sumando todos. Detrás de Nginx o Caddy hay que fijar `TRUST_PROXY` (por ejemplo `loopback`); si no, todas las peticiones parecen venir de la misma IP. En las autorizaciones de supervisor, los 5 intentos fallidos bloquean a quien las pide, no al supervisor, y cada fallo queda en auditoría.
+- **Nadie da más poder del que tiene:** solo se asignan roles y permisos que uno mismo tenga, no se edita a quien tenga permisos que uno no tiene, nadie se desactiva ni se cambia el rol a sí mismo, y siempre queda un admin activo. Quien tenga permisos de administración entra con correo y contraseña, no con PIN.
 - **Acciones sensibles con aprobación por PIN:** descuentos, anular ítems ya enviados a cocina, anular ventas y retiros de caja. Las aprueba quien tenga el permiso de esa acción en la sede. Todo queda en `auditoria`, que la base de datos no deja editar ni borrar.
 - **El servidor calcula los totales.** El cliente solo dice qué productos y cuánto paga con cada método; si no cuadra, no cobra.
 - **Idempotencia** al crear pedidos, al agregarles productos y al cobrar: un reintento por mala señal no duplica nada.
