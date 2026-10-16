@@ -1,4 +1,4 @@
-import type { Rol, TipoServicio } from './tipos';
+import type { TipoServicio } from './tipos';
 
 const formato = (decimales: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: decimales, maximumFractionDigits: decimales });
@@ -49,14 +49,6 @@ export function uuid(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-export const NOMBRE_ROL: Record<Rol, string> = {
-  admin: 'Administración',
-  supervisor: 'Supervisión',
-  cajero: 'Caja',
-  mesero: 'Salón',
-  cocina: 'Cocina',
-};
-
 export const NOMBRE_SERVICIO: Record<TipoServicio, string> = {
   mesa: 'Mesa',
   mostrador: 'Mostrador',
@@ -64,8 +56,6 @@ export const NOMBRE_SERVICIO: Record<TipoServicio, string> = {
   para_llevar: 'Para llevar',
 };
 
-export const puedeCobrar = (rol: Rol) => rol === 'cajero' || rol === 'supervisor' || rol === 'admin';
-export const esSupervisor = (rol: Rol) => rol === 'supervisor' || rol === 'admin';
 
 /** Pitido corto para avisar una comanda nueva en cocina */
 export function pitar() {

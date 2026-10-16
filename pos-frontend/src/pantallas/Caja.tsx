@@ -3,9 +3,10 @@ import { ApiError, api, mensajeError } from '../api';
 import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
 import { PedirSupervisor } from '../componentes/Supervisor';
-import type { Autorizacion, Rol, Turno } from '../tipos';
+import { usePuede } from '../permisos';
+import type { Autorizacion, Turno } from '../tipos';
 import { CLAVES, useDatos } from '../datos';
-import { esSupervisor, leerPesos, pesos } from '../util';
+import { leerPesos, pesos } from '../util';
 
 const num = leerPesos;
 
@@ -23,7 +24,7 @@ interface Cierre {
   turno: { monto_esperado: string; monto_contado: string };
 }
 
-export function Caja({ rol }: { rol: Rol }) {
+export function Caja() {
   const avisar = useAvisar();
   // 404 significa "no hay turno abierto", que no es un error sino el punto de partida
   const turno = useDatos(CLAVES.turno, async () => {
@@ -187,7 +188,6 @@ export function Caja({ rol }: { rol: Rol }) {
         <Movimiento
           tipo={movimiento}
           turnoId={t.id}
-          rol={rol}
           onCerrar={() => setMovimiento(null)}
           onHecho={() => {
             avisar(movimiento === 'ingreso' ? 'Ingreso registrado' : 'Retiro registrado', 'exito');
@@ -266,16 +266,15 @@ function CerrarCaja({ turnoId, onCerrar, onCerrada }: { turnoId: string; onCerra
 function Movimiento({
   tipo,
   turnoId,
-  rol,
   onCerrar,
   onHecho,
 }: {
   tipo: 'ingreso' | 'egreso';
   turnoId: string;
-  rol: Rol;
   onCerrar: () => void;
   onHecho: () => void;
 }) {
+  const puede = usePuede();
   const [monto, setMonto] = useState('');
   const [motivo, setMotivo] = useState('');
   const [aprobar, setAprobar] = useState(false);
@@ -290,7 +289,7 @@ function Movimiento({
   if (aprobar) {
     return (
       <Modal titulo="Aprobar retiro" onCerrar={onCerrar}>
-        <PedirSupervisor accion={`Retirar ${pesos(num(monto))} de la caja`} onAutorizar={guardar} />
+        <PedirSupervisor accion={`Retirar ${pesos(num(monto))} de la caja`} permiso="caja.retiro" onAutorizar={guardar} />
       </Modal>
     );
   }
@@ -302,7 +301,7 @@ function Movimiento({
         onSubmit={async (e) => {
           e.preventDefault();
           if (!listo) return;
-          if (tipo === 'egreso' && !esSupervisor(rol)) return setAprobar(true);
+          if (tipo === 'egreso' && !puede('caja.retiro')) return setAprobar(true);
           try {
             await guardar();
           } catch (err) {

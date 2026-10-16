@@ -1,19 +1,24 @@
 import { useState } from 'react';
 import { api, mensajeError } from '../api';
-import type { Autorizacion, UsuarioLista } from '../tipos';
+import type { Permiso } from '../permisos';
+import type { Autorizacion } from '../tipos';
 import { CLAVES, useDatos } from '../datos';
 import { PinPad } from './PinPad';
 
 interface Props {
   /** Qué se está autorizando, en palabras del usuario: "Aplicar un descuento de $4.000" */
   accion: string;
+  /** Lo que tiene que poder hacer quien aprueba */
+  permiso: Permiso;
   onAutorizar: (a: Autorizacion) => Promise<void>;
 }
 
-/** Un supervisor escoge su nombre y escribe su PIN para aprobar una acción */
-export function PedirSupervisor({ accion, onAutorizar }: Props) {
-  const { datos } = useDatos(CLAVES.usuarios, () => api<UsuarioLista[]>('GET', '/auth/usuarios'));
-  const supervisores = (datos ?? []).filter((u) => u.rol === 'supervisor' || u.rol === 'admin');
+/** Alguien con el permiso escoge su nombre y escribe su PIN para aprobar una acción */
+export function PedirSupervisor({ accion, permiso, onAutorizar }: Props) {
+  const { datos } = useDatos(CLAVES.autorizadores(permiso), () =>
+    api<{ id: string; nombre: string }[]>('GET', `/auth/autorizadores?permiso=${permiso}`),
+  );
+  const supervisores = datos ?? [];
   const [elegido, setElegido] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [ocupado, setOcupado] = useState(false);

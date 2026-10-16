@@ -3,8 +3,9 @@ import { ApiError, api, mensajeError } from '../api';
 import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
 import { PedirSupervisor } from '../componentes/Supervisor';
-import type { Autorizacion, MetodoPago, Pedido, Rol, Venta } from '../tipos';
-import { esSupervisor, leerPesos, pesos, restarPesos, uuid } from '../util';
+import { usePuede } from '../permisos';
+import type { Autorizacion, MetodoPago, Pedido, Venta } from '../tipos';
+import { leerPesos, pesos, restarPesos, uuid } from '../util';
 
 const METODOS: { id: MetodoPago; nombre: string }[] = [
   { id: 'efectivo', nombre: 'Efectivo' },
@@ -28,13 +29,13 @@ const redondear100 = (n: number) => Math.round(n / 100) * 100;
 interface Props {
   pedido: Pedido;
   titulo: string;
-  rol: Rol;
   onCerrar: () => void;
   onCobrado: () => void;
   onIrCaja: () => void;
 }
 
-export function Cobro({ pedido, titulo, rol, onCerrar, onCobrado, onIrCaja }: Props) {
+export function Cobro({ pedido, titulo, onCerrar, onCobrado, onIrCaja }: Props) {
+  const puede = usePuede();
   const avisar = useAvisar();
   const bruto = Number(pedido.totales.total);
   const [propinaModo, setPropinaModo] = useState<'no' | '10' | 'otra'>('no');
@@ -72,7 +73,7 @@ export function Cobro({ pedido, titulo, rol, onCerrar, onCobrado, onIrCaja }: Pr
   }
 
   async function cobrar(autorizacion?: Autorizacion) {
-    if (desc > 0 && !autorizacion && !esSupervisor(rol)) {
+    if (desc > 0 && !autorizacion && !puede('venta.descuento')) {
       setPidiendoSupervisor(true);
       return;
     }
@@ -137,7 +138,7 @@ export function Cobro({ pedido, titulo, rol, onCerrar, onCobrado, onIrCaja }: Pr
   if (pidiendoSupervisor) {
     return (
       <Modal titulo="Aprobar descuento" onCerrar={() => setPidiendoSupervisor(false)}>
-        <PedirSupervisor accion={`Descuento de ${pesos(desc)} en ${titulo.toLowerCase()}`} onAutorizar={cobrar} />
+        <PedirSupervisor accion={`Descuento de ${pesos(desc)} en ${titulo.toLowerCase()}`} permiso="venta.descuento" onAutorizar={cobrar} />
       </Modal>
     );
   }
@@ -181,7 +182,7 @@ export function Cobro({ pedido, titulo, rol, onCerrar, onCobrado, onIrCaja }: Pr
               <dd>{pesos(total)}</dd>
             </div>
           </dl>
-          {desc > 0 && !esSupervisor(rol) && <p className="nota">El descuento lo aprueba un supervisor al cobrar.</p>}
+          {desc > 0 && !puede('venta.descuento') && <p className="nota">El descuento lo aprueba un supervisor al cobrar.</p>}
         </section>
 
         <section className="cobro-pagos">

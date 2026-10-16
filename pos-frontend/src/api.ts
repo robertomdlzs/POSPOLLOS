@@ -21,7 +21,9 @@ export class ApiError extends Error {
 function leerGuardada(): Sesion | null {
   try {
     const t = localStorage.getItem(CLAVE);
-    return t ? (JSON.parse(t) as Sesion) : null;
+    const s = t ? (JSON.parse(t) as Sesion) : null;
+    // Una sesión guardada antes de los permisos no sabe qué mostrar: se vuelve a entrar con el PIN
+    return s && Array.isArray(s.usuario?.permisos) ? s : null;
   } catch {
     return null;
   }

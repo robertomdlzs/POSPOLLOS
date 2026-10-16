@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNaviga
 import { alCambiarSesion, cerrarSesion, obtenerSesion } from './api';
 import { ProveedorAvisos, useAvisar } from './componentes/Avisos';
 import { Bloqueo, useInactividad } from './componentes/Bloqueo';
+import { EstadoVacio } from './componentes/EstadoVacio';
 import { clienteDatos, useTiempoReal } from './datos';
 import { Muestra } from './pantallas/admin/Muestra';
 import { Caja } from './pantallas/Caja';
@@ -12,19 +13,20 @@ import { Ingreso } from './pantallas/Ingreso';
 import { Mesas, type AbrirPedido } from './pantallas/Mesas';
 import { Pedido } from './pantallas/Pedido';
 import { cerrarCanal, canalCocina } from './socket';
-import type { Rol, Sesion } from './tipos';
-import { NOMBRE_ROL, cant } from './util';
+import { ProveedorPermisos, type Permiso } from './permisos';
+import type { Sesion } from './tipos';
+import { cant } from './util';
 
 type Seccion = 'mesas' | 'caja' | 'cocina';
 
-const SECCIONES: Record<Rol, Seccion[]> = {
-  mesero: ['mesas'],
-  cajero: ['mesas', 'caja'],
-  cocina: ['cocina'],
-  supervisor: ['mesas', 'caja', 'cocina'],
-  admin: ['mesas', 'caja', 'cocina'],
-};
-const NOMBRE_SECCION: Record<Seccion, string> = { mesas: 'Mesas', caja: 'Caja', cocina: 'Cocina' };
+/** Cada sección se ve si el rol tiene su permiso, en este orden */
+const SECCIONES: { seccion: Seccion; permiso: Permiso; nombre: string }[] = [
+  { seccion: 'mesas', permiso: 'pedido.tomar', nombre: 'Mesas' },
+  { seccion: 'caja', permiso: 'caja.operar', nombre: 'Caja' },
+  { seccion: 'cocina', permiso: 'cocina.operar', nombre: 'Cocina' },
+];
+const NOMBRE_SECCION = Object.fromEntries(SECCIONES.map((s) => [s.seccion, s.nombre])) as Record<Seccion, string>;
+const PERMISOS_ADMIN: Permiso[] = ['menu.editar', 'salon.editar', 'usuario.editar', 'rol.editar', 'config.editar'];
 
 /** Lo que viaja en el estado de la navegación al abrir un pedido */
 interface EstadoPedido {
@@ -60,23 +62,32 @@ function Raiz() {
     }
   }, [sesion, navegar]);
 
-  return sesion ? <Trabajo key={sesion.usuario.id} sesion={sesion} /> : <Ingreso />;
+  return sesion ? (
+    <ProveedorPermisos permisos={sesion.usuario.permisos}>
+      <Trabajo key={sesion.usuario.id} sesion={sesion} />
+    </ProveedorPermisos>
+  ) : (
+    <Ingreso />
+  );
 }
 
 function Trabajo({ sesion }: { sesion: Sesion }) {
   const avisar = useAvisar();
   const navegar = useNavigate();
   const { pathname } = useLocation();
-  const { rol, nombre } = sesion.usuario;
-  const secciones = SECCIONES[rol];
-  const inicio = `/${secciones[0]}`;
+  const { nombre, rolNombre, permisos } = sesion.usuario;
+  const secciones = SECCIONES.filter((s) => permisos.includes(s.permiso)).map((s) => s.seccion);
+  const inicio = secciones.length ? `/${secciones[0]}` : '/sin-secciones';
+  const soloCocina = secciones.length === 1 && secciones[0] === 'cocina';
+  const toma = permisos.includes('pedido.tomar');
+  const administra = PERMISOS_ADMIN.some((p) => permisos.includes(p));
   // La pantalla de cocina se mira más de lo que se toca: no se bloquea
-  const [bloqueada, desbloquear] = useInactividad(rol !== 'cocina');
+  const [bloqueada, desbloquear] = useInactividad(!soloCocina);
   useTiempoReal();
 
-  // Meseros y caja se enteran cuando un plato sale de cocina
+  // Quienes toman pedidos se enteran cuando un plato sale de cocina
   useEffect(() => {
-    if (rol === 'cocina') return;
+    if (!toma) return;
     const canal = canalCocina();
     const alListo = (e: { estado: string; producto?: string; cantidad?: string; mesa?: string | null; numero?: string }) => {
       if (e.estado !== 'listo' || !e.producto) return;
@@ -87,7 +98,7 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
     return () => {
       canal.off('item.estado', alListo);
     };
-  }, [rol, avisar]);
+  }, [toma, avisar]);
 
   /** Solo deja ver la sección si el rol la tiene; si no, lo lleva a su inicio */
   const conPermiso = (s: Seccion, elemento: ReactNode) => (secciones.includes(s) ? elemento : <Navigate to={inicio} replace />);
@@ -112,7 +123,7 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
         </nav>
         <div className="barra-usuario">
           <span>
-            {nombre} <small>{NOMBRE_ROL[rol]}</small>
+            {nombre} <small>{rolNombre}</small>
           </span>
           <button className="boton boton-barra" onClick={cerrarSesion}>
             Cambiar de usuario
@@ -124,10 +135,22 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
         <Routes>
           <Route path="/" element={<Navigate to={inicio} replace />} />
           <Route path="/mesas" element={conPermiso('mesas', <Mesas onAbrir={abrirPedido} />)} />
-          <Route path="/pedido/:id" element={conPermiso('mesas', <PaginaPedido rol={rol} puedeCaja={secciones.includes('caja')} />)} />
-          <Route path="/caja" element={conPermiso('caja', <Caja rol={rol} />)} />
+          <Route path="/pedido/:id" element={conPermiso('mesas', <PaginaPedido puedeCaja={secciones.includes('caja')} />)} />
+          <Route path="/caja" element={conPermiso('caja', <Caja />)} />
           <Route path="/cocina" element={conPermiso('cocina', <Cocina />)} />
-          <Route path="/admin/muestra" element={rol === 'admin' ? <Muestra /> : <Navigate to={inicio} replace />} />
+          <Route path="/admin/muestra" element={administra ? <Muestra /> : <Navigate to={inicio} replace />} />
+          <Route
+            path="/sin-secciones"
+            element={
+              secciones.length ? (
+                <Navigate to={inicio} replace />
+              ) : (
+                <div className="admin-pantalla">
+                  <EstadoVacio titulo="Tu rol no tiene secciones" texto="Pídele a quien administra el restaurante que te asigne un rol con permisos." />
+                </div>
+              )
+            }
+          />
           <Route path="*" element={<Navigate to={inicio} replace />} />
         </Routes>
       </main>
@@ -141,7 +164,7 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
  * navegación; /pedido/:id se puede abrir directo o recargar, porque el pedido
  * se carga del servidor.
  */
-function PaginaPedido({ rol, puedeCaja }: { rol: Rol; puedeCaja: boolean }) {
+function PaginaPedido({ puedeCaja }: { puedeCaja: boolean }) {
   const { id = '' } = useParams();
   const navegar = useNavigate();
   const estado = useLocation().state as EstadoPedido | null;
@@ -155,7 +178,6 @@ function PaginaPedido({ rol, puedeCaja }: { rol: Rol; puedeCaja: boolean }) {
       // La misma apertura conserva la pantalla aunque el pedido nuevo pase a tener id
       key={estado?.clave ?? id}
       contexto={contexto}
-      rol={rol}
       onCreado={(nuevoId) =>
         navegar(`/pedido/${nuevoId}`, {
           replace: true,

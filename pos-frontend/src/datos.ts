@@ -21,6 +21,7 @@ export const clienteDatos = new QueryClient({
 
 export const CLAVES = {
   usuarios: ['usuarios'],
+  autorizadores: (permiso: string) => ['autorizadores', permiso],
   menu: ['menu'],
   mesas: ['mesas'],
   pedidos: ['pedidos'],

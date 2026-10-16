@@ -3,7 +3,6 @@ import { ApiError, api, fijarSesion, mensajeError } from '../api';
 import { PinPad } from '../componentes/PinPad';
 import type { Sesion, UsuarioLista } from '../tipos';
 import { CLAVES, useDatos } from '../datos';
-import { NOMBRE_ROL } from '../util';
 
 function Reloj() {
   const [ahora, setAhora] = useState(new Date());
@@ -68,7 +67,7 @@ export function Ingreso() {
                 {u.nombre.charAt(0)}
               </span>
               <span className="persona-nombre">{u.nombre}</span>
-              <span className="persona-rol">{NOMBRE_ROL[u.rol]}</span>
+              <span className="persona-rol">{u.rolNombre}</span>
             </button>
           ))}
         </div>

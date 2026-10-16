@@ -3,9 +3,10 @@ import { api, mensajeError } from '../api';
 import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
 import { PedirSupervisor } from '../componentes/Supervisor';
-import type { Autorizacion, ItemPedido, Opcion, Pedido as TPedido, Producto, Rol } from '../tipos';
+import { usePuede } from '../permisos';
+import type { Autorizacion, ItemPedido, Opcion, Pedido as TPedido, Producto } from '../tipos';
 import { CLAVES, invalidar, useDatos } from '../datos';
-import { NOMBRE_SERVICIO, cant, esSupervisor, pesos, puedeCobrar, uuid } from '../util';
+import { NOMBRE_SERVICIO, cant, pesos, uuid } from '../util';
 import { Cobro } from './Cobro';
 import type { AbrirPedido } from './Mesas';
 
@@ -30,14 +31,14 @@ const precioLinea = (l: Linea) => (Number(l.producto.precio) + l.opciones.reduce
 
 interface Props {
   contexto: AbrirPedido;
-  rol: Rol;
   /** El pedido nuevo ya existe en el servidor: para pasar a su dirección */
   onCreado?: (id: string) => void;
   onVolver: () => void;
   onIrCaja: () => void;
 }
 
-export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
+export function Pedido({ contexto, onCreado, onVolver, onIrCaja }: Props) {
+  const puede = usePuede();
   const avisar = useAvisar();
   // El menú cambia poco: se da por fresco 5 minutos y se comparte entre pedidos
   const menu = useDatos(CLAVES.menu, () => api<Producto[]>('GET', '/menu'), { frescura: 5 * 60_000 });
@@ -287,7 +288,7 @@ export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
             <button className="boton boton-peligro boton-grande" disabled={cerrando} onClick={cerrarVacio}>
               {cerrando ? 'Cerrando…' : contexto.tipoServicio === 'mesa' ? 'Cerrar pedido y liberar la mesa' : 'Cerrar pedido'}
             </button>
-          ) : puedeCobrar(rol) && (
+          ) : puede('venta.cobrar') && (
             <button
               className="boton boton-primario boton-grande"
               disabled={!p || lineas.length > 0 || sinEnviar > 0 || activos === 0}
@@ -321,7 +322,6 @@ export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
         <Anular
           item={anulando}
           pedidoId={p.id}
-          rol={rol}
           onCerrar={() => setAnulando(null)}
           onAnulado={() => {
             setAnulando(null);
@@ -334,7 +334,6 @@ export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
         <Cobro
           pedido={p}
           titulo={titulo}
-          rol={rol}
           onCerrar={() => setCobrando(false)}
           onIrCaja={onIrCaja}
           onCobrado={() => {
@@ -437,20 +436,19 @@ const MOTIVOS = ['Error al tomar el pedido', 'El cliente lo canceló', 'Se demor
 function Anular({
   item,
   pedidoId,
-  rol,
   onCerrar,
   onAnulado,
 }: {
   item: ItemPedido;
   pedidoId: string;
-  rol: Rol;
   onCerrar: () => void;
   onAnulado: () => void;
 }) {
+  const puede = usePuede();
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const necesitaSupervisor = !!item.enviadoCocinaEn && !esSupervisor(rol);
+  const necesitaSupervisor = !!item.enviadoCocinaEn && !puede('pedido.anular_enviado');
 
   async function anular(autorizacion?: Autorizacion) {
     await api('POST', `/pedidos/${pedidoId}/items/${item.id}/anular`, { motivo, autorizacion });
@@ -474,7 +472,7 @@ function Anular({
         {motivo.trim().length < 3 ? (
           <p className="nota">Escoge o escribe el motivo.</p>
         ) : necesitaSupervisor ? (
-          <PedirSupervisor accion="Anular un producto que ya está en cocina" onAutorizar={anular} />
+          <PedirSupervisor accion="Anular un producto que ya está en cocina" permiso="pedido.anular_enviado" onAutorizar={anular} />
         ) : (
           <button
             className="boton boton-peligro boton-grande"

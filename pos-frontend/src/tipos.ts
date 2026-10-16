@@ -1,15 +1,15 @@
-export type Rol = 'admin' | 'supervisor' | 'cajero' | 'mesero' | 'cocina';
+import type { Permiso } from './permisos';
 
 export interface UsuarioLista {
   id: string;
   nombre: string;
-  rol: Rol;
+  rolNombre: string;
 }
 
 export interface Sesion {
   accessToken: string;
   refreshToken: string;
-  usuario: { id: string; nombre: string; rol: Rol; sedeId: string };
+  usuario: { id: string; nombre: string; rolNombre: string; permisos: Permiso[]; sedeId: string };
 }
 
 export interface Opcion {
