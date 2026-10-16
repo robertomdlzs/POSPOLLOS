@@ -143,3 +143,49 @@ export interface Venta {
   total: string;
   cambio: string;
 }
+
+// ------------------------------------------------------- panel de administración
+
+export interface Pagina<T> {
+  datos: T[];
+  siguiente: string | null;
+}
+
+export interface SedeRol {
+  sedeId: string;
+  sede: string;
+  rolId: string;
+  rol: string;
+}
+
+export interface UsuarioAdmin {
+  id: string;
+  nombre: string;
+  email: string | null;
+  activo: boolean;
+  tienePin: boolean;
+  tieneContrasena: boolean;
+  roles: SedeRol[];
+}
+
+export interface RolAdmin {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  /** Clave de los roles de fábrica; null en los creados por el restaurante */
+  clave: string | null;
+  permisos: Permiso[];
+  usuarios: number;
+  editable: boolean;
+}
+
+export interface PermisoCatalogo {
+  codigo: Permiso;
+  grupo: string;
+  descripcion: string;
+}
+
+export interface Sede {
+  id: string;
+  nombre: string;
+}

@@ -6,7 +6,7 @@ import { ProveedorAvisos, useAvisar } from './componentes/Avisos';
 import { Bloqueo, useInactividad } from './componentes/Bloqueo';
 import { EstadoVacio } from './componentes/EstadoVacio';
 import { clienteDatos, useTiempoReal } from './datos';
-import { Muestra } from './pantallas/admin/Muestra';
+import { Admin } from './pantallas/admin/Admin';
 import { Caja } from './pantallas/Caja';
 import { Cocina } from './pantallas/Cocina';
 import { Ingreso } from './pantallas/Ingreso';
@@ -17,7 +17,7 @@ import { ProveedorPermisos, type Permiso } from './permisos';
 import type { Sesion } from './tipos';
 import { cant } from './util';
 
-type Seccion = 'mesas' | 'caja' | 'cocina';
+type Seccion = 'mesas' | 'caja' | 'cocina' | 'admin';
 
 /** Cada sección se ve si el rol tiene su permiso, en este orden */
 const SECCIONES: { seccion: Seccion; permiso: Permiso; nombre: string }[] = [
@@ -25,8 +25,11 @@ const SECCIONES: { seccion: Seccion; permiso: Permiso; nombre: string }[] = [
   { seccion: 'caja', permiso: 'caja.operar', nombre: 'Caja' },
   { seccion: 'cocina', permiso: 'cocina.operar', nombre: 'Cocina' },
 ];
-const NOMBRE_SECCION = Object.fromEntries(SECCIONES.map((s) => [s.seccion, s.nombre])) as Record<Seccion, string>;
 const PERMISOS_ADMIN: Permiso[] = ['menu.editar', 'salon.editar', 'usuario.editar', 'rol.editar', 'config.editar'];
+const NOMBRE_SECCION: Record<Seccion, string> = {
+  ...(Object.fromEntries(SECCIONES.map((s) => [s.seccion, s.nombre])) as Record<Exclude<Seccion, 'admin'>, string>),
+  admin: 'Administración',
+};
 
 /** Lo que viaja en el estado de la navegación al abrir un pedido */
 interface EstadoPedido {
@@ -76,11 +79,11 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
   const navegar = useNavigate();
   const { pathname } = useLocation();
   const { nombre, rolNombre, permisos } = sesion.usuario;
-  const secciones = SECCIONES.filter((s) => permisos.includes(s.permiso)).map((s) => s.seccion);
+  const administra = PERMISOS_ADMIN.some((p) => permisos.includes(p));
+  const secciones: Seccion[] = [...SECCIONES.filter((s) => permisos.includes(s.permiso)).map((s) => s.seccion), ...(administra ? ['admin' as const] : [])];
   const inicio = secciones.length ? `/${secciones[0]}` : '/sin-secciones';
   const soloCocina = secciones.length === 1 && secciones[0] === 'cocina';
   const toma = permisos.includes('pedido.tomar');
-  const administra = PERMISOS_ADMIN.some((p) => permisos.includes(p));
   // La pantalla de cocina se mira más de lo que se toca: no se bloquea
   const [bloqueada, desbloquear] = useInactividad(!soloCocina);
   useTiempoReal();
@@ -138,7 +141,7 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
           <Route path="/pedido/:id" element={conPermiso('mesas', <PaginaPedido puedeCaja={secciones.includes('caja')} />)} />
           <Route path="/caja" element={conPermiso('caja', <Caja />)} />
           <Route path="/cocina" element={conPermiso('cocina', <Cocina />)} />
-          <Route path="/admin/muestra" element={administra ? <Muestra /> : <Navigate to={inicio} replace />} />
+          <Route path="/admin/*" element={conPermiso('admin', <Admin />)} />
           <Route
             path="/sin-secciones"
             element={

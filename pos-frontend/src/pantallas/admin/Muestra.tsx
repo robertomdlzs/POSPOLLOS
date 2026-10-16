@@ -65,7 +65,7 @@ export function Muestra() {
   }));
 
   return (
-    <div className="admin-pantalla">
+    <div className="admin-seccion">
       <header className="seccion-cabeza">
         <div>
           <h1>Componentes del panel</h1>

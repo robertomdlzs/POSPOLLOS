@@ -28,6 +28,13 @@ export const CLAVES = {
   pedido: (id: string) => ['pedido', id],
   turno: ['turno'],
   cocina: ['cocina'],
+  admin: {
+    usuarios: ['admin', 'usuarios'],
+    usuario: (id: string) => ['admin', 'usuarios', id],
+    roles: ['admin', 'roles'],
+    permisos: ['admin', 'permisos'],
+    sedes: ['admin', 'sedes'],
+  },
 } as const;
 
 interface Opciones {

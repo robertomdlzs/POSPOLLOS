@@ -278,6 +278,10 @@ export class UsuariosService {
     });
   }
 
+  sedes(u: UsuarioToken) {
+    return this.db.query(`SELECT id, nombre FROM sede WHERE empresa_id = $1 AND activa ORDER BY creado_en`, [u.empresaId]);
+  }
+
   // ------------------------------------------------------------------ apoyo
 
   private async rolesDeEmpresa(empresaId: string, db?: Db): Promise<RolFila[]> {

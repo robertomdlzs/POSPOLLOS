@@ -232,6 +232,33 @@ input::placeholder { color: var(--tinta-3); }
 .admin-pantalla { display: grid; gap: 1.5rem; max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
 .admin-bloque { display: grid; gap: 1rem; }
 .admin-formulario { max-width: 560px; }
+.admin-seccion,
+.admin-columna { display: grid; gap: 1.5rem; }
+.admin-columna { max-width: 760px; }
+.admin-nav a { display: inline-flex; align-items: center; text-decoration: none; color: inherit; }
+.celda-sub,
+.celda-linea { display: block; }
+.celda-sub { margin-top: 0.15rem; }
+
+/* Un campo con su botón al lado (cambiar PIN, contraseña) */
+.fila-campo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.9rem; max-width: 560px; }
+.fila-campo .campo { flex: 1 1 260px; }
+.fila-campo > .boton { margin-top: 1.75rem; }
+
+/* Editor de permisos de un rol */
+.permisos-grupos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
+.permisos-grupo {
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 0;
+  border-radius: var(--r-control);
+  box-shadow: var(--hundido-sm);
+}
+.permisos-grupo legend { padding: 0 0.3rem; font-weight: 700; }
+.permisos-grupo .interruptor-etiqueta { font-weight: 400; }
 .fila-botones-fin { justify-content: flex-end; }
 
 .boton-rojo { background: var(--rojo); color: #fff; }
