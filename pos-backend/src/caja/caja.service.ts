@@ -68,8 +68,16 @@ export class CajaService {
         [turnoId, dto.tipo, aPesos(aCentavos(dto.monto)), dto.motivo, u.id],
         c,
       );
+      // Solo los datos del movimiento: el DTO trae el PIN del supervisor y la auditoría no se puede borrar
       await this.auditoria.registrar(
-        { usuarioId: u.id, autorizadoPor, accion: `caja_${dto.tipo}`, entidad: 'movimiento_caja', entidadId: mov.id, datos: dto },
+        {
+          usuarioId: u.id,
+          autorizadoPor,
+          accion: `caja_${dto.tipo}`,
+          entidad: 'movimiento_caja',
+          entidadId: mov.id,
+          datos: { tipo: dto.tipo, monto: mov.monto, motivo: dto.motivo },
+        },
         c,
       );
       return mov;
