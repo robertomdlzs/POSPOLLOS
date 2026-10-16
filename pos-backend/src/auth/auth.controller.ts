@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Publico, UsuarioActual } from '../common/decoradores';
@@ -10,6 +11,7 @@ import { AuthService } from './auth.service';
 // por usuario que aplica @RutaIngreso (ver common/limites.ts)
 const LIMITE_LOGIN = { default: { limit: INGRESOS_POR_IP, ttl: 60_000 } };
 
+@ApiTags('Ingreso y sesión')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}

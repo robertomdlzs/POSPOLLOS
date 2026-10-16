@@ -1,9 +1,11 @@
+import { ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { Roles, UsuarioActual } from '../common/decoradores';
 import type { UsuarioToken } from '../common/tipos';
 import { AgregarItemsDto, AnularItemDto, CrearPedidoDto } from './pedidos.dto';
 import { PedidosService } from './pedidos.service';
 
+@ApiTags('Pedidos')
 @Controller('pedidos')
 @Roles('mesero', 'cajero', 'supervisor')
 export class PedidosController {

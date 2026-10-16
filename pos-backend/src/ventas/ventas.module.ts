@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Get, HttpCode, Module, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { Roles, UsuarioActual } from '../common/decoradores';
@@ -6,6 +7,7 @@ import { PedidosModule } from '../pedidos/pedidos.module';
 import { AnularVentaDto, CobrarDto } from './ventas.dto';
 import { VentasService } from './ventas.service';
 
+@ApiTags('Ventas')
 @Controller('ventas')
 @Roles('cajero', 'supervisor')
 export class VentasController {

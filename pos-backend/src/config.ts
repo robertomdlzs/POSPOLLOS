@@ -31,6 +31,8 @@ export const config = {
   /** Vida del refresh token, en días */
   refreshTtlDias: Number(process.env.REFRESH_TTL_DAYS ?? 7),
   trustProxy: leerTrustProxy(process.env.TRUST_PROXY),
+  /** Documentación OpenAPI en /api/docs. Apagada en producción salvo que se pida */
+  docsApi: (process.env.DOCS_API ?? (process.env.NODE_ENV === 'production' ? 'false' : 'true')) === 'true',
   /** trace, debug, info, warn, error */
   logNivel: process.env.LOG_NIVEL ?? 'info',
   /** Logs legibles en la terminal (pino-pretty, solo desarrollo) en vez de JSON */

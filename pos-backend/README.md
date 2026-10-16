@@ -74,6 +74,8 @@ tests/flujo.e2e.mjs prueba de punta a punta
 
 ## Endpoints
 
+Con el servidor corriendo, la documentación interactiva (OpenAPI) está en http://localhost:3000/api/docs y el JSON en `/api/docs/json`. En producción está apagada salvo que se fije `DOCS_API=true`.
+
 Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, salvo las marcadas como públicas.
 
 | Método | Ruta | Roles | Para qué |

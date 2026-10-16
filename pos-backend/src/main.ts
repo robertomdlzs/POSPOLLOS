@@ -1,6 +1,7 @@
 import { config } from './config';
 import { ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
@@ -24,6 +25,20 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new PgErrorFilter(app.get(HttpAdapterHost).httpAdapter));
   app.enableShutdownHooks();
+
+  if (config.docsApi) {
+    const documento = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder()
+        .setTitle('POSPOLLOS API')
+        .setDescription('API del punto de venta. Salvo las rutas de ingreso, todas exigen `Authorization: Bearer <accessToken>`.')
+        .setVersion(process.env.npm_package_version ?? '0.1.0')
+        .addBearerAuth()
+        .addSecurityRequirements('bearer')
+        .build(),
+    );
+    SwaggerModule.setup('api/docs', app, documento, { jsonDocumentUrl: 'api/docs/json' });
+  }
 
   await app.listen(config.port);
   app.get(Logger).log(`POS backend escuchando en http://localhost:${config.port}/api`, 'Bootstrap');

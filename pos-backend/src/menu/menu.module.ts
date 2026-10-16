@@ -1,8 +1,10 @@
+import { ApiTags } from '@nestjs/swagger';
 import { Controller, Get, Module } from '@nestjs/common';
 import { Roles, UsuarioActual } from '../common/decoradores';
 import type { UsuarioToken } from '../common/tipos';
 import { DatabaseService } from '../database/database.service';
 
+@ApiTags('Menú y mesas')
 @Controller()
 export class MenuController {
   constructor(private readonly db: DatabaseService) {}
@@ -44,6 +46,7 @@ export class MenuController {
   }
 }
 
+@ApiTags('Inventario')
 @Controller('inventario')
 @Roles('supervisor', 'cajero')
 export class InventarioController {

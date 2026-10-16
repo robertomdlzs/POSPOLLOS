@@ -1,3 +1,4 @@
+import { ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { Roles, UsuarioActual } from '../common/decoradores';
@@ -12,6 +13,7 @@ class FiltroCajaDto {
   caja?: string;
 }
 
+@ApiTags('Caja')
 @Controller('caja')
 @Roles('cajero', 'supervisor')
 export class CajaController {
