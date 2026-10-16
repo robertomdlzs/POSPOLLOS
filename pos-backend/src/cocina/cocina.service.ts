@@ -37,6 +37,7 @@ export class CocinaService {
     return this.db.query(
       `${COMANDA_SQL}
         WHERE p.sede_id = $1
+          AND p.estado <> 'anulado'
           AND i.enviado_cocina_en IS NOT NULL
           AND i.estado IN ('pendiente', 'preparando', 'listo')
           AND ($2::uuid IS NULL OR e.id = $2)
