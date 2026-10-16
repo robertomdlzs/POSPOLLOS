@@ -4,7 +4,7 @@ import { OnGatewayConnection, WebSocketGateway, WebSocketServer } from '@nestjs/
 import type { Namespace, Socket } from 'socket.io';
 import type { UsuarioToken } from '../common/tipos';
 import { tokenAUsuario } from '../common/guards';
-import { RevocacionService } from '../common/revocacion';
+import { emitidoEn, RevocacionService } from '../common/revocacion';
 import { config } from '../config';
 
 /**
@@ -40,7 +40,7 @@ export class CocinaGateway implements OnGatewayConnection {
   handleConnection(cliente: Socket) {
     try {
       const payload = this.jwt.verify(String(cliente.handshake.auth?.token ?? ''));
-      if (this.revocacion.estaRevocado(payload.sub, payload.sid, payload.iat)) throw new Error('revocado');
+      if (this.revocacion.estaRevocado(payload.sub, payload.sid, emitidoEn(payload))) throw new Error('revocado');
       const usuario = tokenAUsuario(payload);
       cliente.data.usuario = usuario;
       cliente.join(`sede:${usuario.sedeId}`);

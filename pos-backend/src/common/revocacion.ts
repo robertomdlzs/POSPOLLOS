@@ -24,11 +24,8 @@ export class RevocacionService {
     this.oyentes.forEach((f) => f(r));
   }
 
-  /** ¿El token de este usuario y esta sesión, emitido en `iat` (segundos), quedó revocado? */
-  estaRevocado(usuarioId: string, sesionId: string | undefined, iat: number): boolean {
-    // iat va en segundos: un token emitido en el mismo segundo de la revocación
-    // también cae, que es el lado seguro
-    const emitido = iat * 1000;
+  /** ¿El token de este usuario y esta sesión, emitido en `emitido` (ms), quedó revocado? */
+  estaRevocado(usuarioId: string, sesionId: string | undefined, emitido: number): boolean {
     const antesDe = (clave: string) => {
       const t = this.revocados.get(clave);
       return t !== undefined && emitido <= t;
@@ -46,6 +43,13 @@ export class RevocacionService {
     for (const [clave, t] of this.revocados) if (t < limite) this.revocados.delete(clave);
   }
 }
+
+/**
+ * Momento de emisión del token en milisegundos. `iat` va en segundos y no
+ * alcanza: quien vuelve a entrar en el mismo segundo de una revocación quedaría
+ * revocado también. Por eso el token lleva `emi`; `iat` queda para tokens viejos.
+ */
+export const emitidoEn = (payload: { emi?: number; iat?: number }) => payload.emi ?? (payload.iat ?? 0) * 1000;
 
 @Global()
 @Module({ providers: [RevocacionService], exports: [RevocacionService] })

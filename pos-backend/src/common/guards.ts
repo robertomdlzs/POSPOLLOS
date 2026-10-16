@@ -8,7 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { ES_PUBLICO, ROLES_PERMITIDOS } from './decoradores';
-import { RevocacionService } from './revocacion';
+import { emitidoEn, RevocacionService } from './revocacion';
 import { Rol, UsuarioToken } from './tipos';
 
 export function tokenAUsuario(p: any): UsuarioToken {
@@ -37,7 +37,7 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('Token inválido o vencido');
     }
-    if (this.revocacion.estaRevocado(payload.sub, payload.sid, payload.iat)) {
+    if (this.revocacion.estaRevocado(payload.sub, payload.sid, emitidoEn(payload))) {
       throw new UnauthorizedException('La sesión se cerró');
     }
     req.user = tokenAUsuario(payload);
