@@ -148,7 +148,7 @@ export class PedidosService {
       let autorizadoPor: string | null = null;
       if (item.enviado_cocina_en) {
         if (u.rol === 'supervisor' || u.rol === 'admin') autorizadoPor = u.id;
-        else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u.empresaId);
+        else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u);
         else throw new ForbiddenException('Este producto ya está en cocina: se requiere autorización de un supervisor');
       }
 

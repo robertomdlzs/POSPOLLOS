@@ -10,7 +10,7 @@ import bcrypt from 'bcryptjs';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AutorizacionDto } from '../common/dto';
-import { Rol } from '../common/tipos';
+import type { Rol, UsuarioToken } from '../common/tipos';
 import { config } from '../config';
 import { DatabaseService, Db } from '../database/database.service';
 import { LoginPasswordDto, LoginPinDto } from './auth.dto';
@@ -130,19 +130,52 @@ export class AuthService {
   /**
    * Valida el PIN de un supervisor (o admin) para autorizar descuentos,
    * anulaciones, retiros de caja, etc. Devuelve su id para la auditoría.
+   *
+   * Los intentos fallidos se cuentan contra quien pide la autorización y no
+   * contra el supervisor, para que un cajero no lo pueda dejar bloqueado.
+   * Estas consultas van por el pool, fuera de la transacción de quien llama,
+   * para que el contador no se revierta junto con la acción rechazada.
    */
-  async verificarSupervisor(aut: AutorizacionDto, empresaId: string): Promise<string> {
-    let u: UsuarioFila;
+  async verificarSupervisor(aut: AutorizacionDto, solicitante: UsuarioToken): Promise<string> {
+    const s = await this.db.one<{ autorizacion_bloqueada_hasta: Date | null; intentos_autorizacion: number }>(
+      `SELECT autorizacion_bloqueada_hasta, intentos_autorizacion FROM usuario WHERE id = $1`,
+      [solicitante.id],
+    );
+    if (s?.autorizacion_bloqueada_hasta && new Date(s.autorizacion_bloqueada_hasta) > new Date()) {
+      throw new HttpException('Demasiadas autorizaciones fallidas. Espera unos minutos', 423);
+    }
+
+    let sup: UsuarioFila | null = null;
     try {
-      u = await this.verificarCredencial(aut.supervisorId, 'pin_hash', aut.pin);
+      sup = await this.verificarCredencial(aut.supervisorId, 'pin_hash', aut.pin, false);
     } catch (e) {
-      if (e instanceof UnauthorizedException) throw new ForbiddenException('Autorización de supervisor inválida');
-      throw e;
+      if (!(e instanceof UnauthorizedException)) throw e;
     }
-    if (u.empresa_id !== empresaId || (u.rol !== 'supervisor' && u.rol !== 'admin')) {
-      throw new ForbiddenException('Se requiere autorización de un supervisor');
+    const esSupervisor = !!sup && sup.empresa_id === solicitante.empresaId && (sup.rol === 'supervisor' || sup.rol === 'admin');
+    if (!esSupervisor) {
+      await this.db.query(
+        `UPDATE usuario
+            SET autorizacion_bloqueada_hasta = CASE WHEN intentos_autorizacion + 1 >= $2
+                                                    THEN now() + make_interval(mins => $3) ELSE autorizacion_bloqueada_hasta END,
+                intentos_autorizacion        = CASE WHEN intentos_autorizacion + 1 >= $2 THEN 0 ELSE intentos_autorizacion + 1 END
+          WHERE id = $1`,
+        [solicitante.id, MAX_INTENTOS, MINUTOS_BLOQUEO],
+      );
+      await this.auditoria.registrar({
+        usuarioId: solicitante.id,
+        accion: 'autorizacion_fallida',
+        entidad: 'usuario',
+        entidadId: aut.supervisorId,
+      });
+      throw new ForbiddenException(sup ? 'Se requiere autorización de un supervisor' : 'Autorización de supervisor inválida');
     }
-    return u.id;
+    if (s && (s.intentos_autorizacion > 0 || s.autorizacion_bloqueada_hasta)) {
+      await this.db.query(
+        `UPDATE usuario SET intentos_autorizacion = 0, autorizacion_bloqueada_hasta = NULL WHERE id = $1`,
+        [solicitante.id],
+      );
+    }
+    return sup!.id;
   }
 
   // ---------------------------------------------------------------------
@@ -151,6 +184,8 @@ export class AuthService {
     usuarioId: string,
     campo: 'pin_hash' | 'password_hash',
     secreto: string,
+    /** false para las autorizaciones de supervisor: ahí el fallo se cuenta al solicitante */
+    contarFallos = true,
   ): Promise<UsuarioFila> {
     const u = await this.db.one<UsuarioFila>(
       `SELECT id, nombre, rol, empresa_id, activo, pin_hash, password_hash, intentos_fallidos, bloqueado_hasta
@@ -166,6 +201,7 @@ export class AuthService {
     }
 
     const correcto = await bcrypt.compare(secreto, u[campo]!);
+    if (!correcto && !contarFallos) throw new UnauthorizedException('Credenciales inválidas');
     if (!correcto) {
       // Al llegar al límite se bloquea y el contador vuelve a cero
       await this.db.query(
@@ -178,7 +214,7 @@ export class AuthService {
       );
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    if (u.intentos_fallidos > 0 || u.bloqueado_hasta) {
+    if (contarFallos && (u.intentos_fallidos > 0 || u.bloqueado_hasta)) {
       await this.db.query(`UPDATE usuario SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = $1`, [u.id]);
     }
     return u;

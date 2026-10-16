@@ -33,7 +33,7 @@ export class VentasService {
     let autorizadoPor: string | null = null;
     if (descuento > 0) {
       if (u.rol === 'supervisor' || u.rol === 'admin') autorizadoPor = u.id;
-      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u.empresaId);
+      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u);
       else throw new ForbiddenException('El descuento requiere autorización de un supervisor');
     }
 
@@ -127,7 +127,7 @@ export class VentasService {
   }
 
   async anular(ventaId: string, dto: AnularVentaDto, u: UsuarioToken) {
-    const supervisorId = await this.auth.verificarSupervisor(dto.autorizacion, u.empresaId);
+    const supervisorId = await this.auth.verificarSupervisor(dto.autorizacion, u);
     await this.db.transaction(async (c) => {
       const v = await this.db.one(
         `SELECT v.id, v.estado, v.pedido_id, v.factura_cufe, t.estado AS turno_estado

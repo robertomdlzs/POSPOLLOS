@@ -57,7 +57,7 @@ export class CajaService {
     let autorizadoPor: string | null = null;
     if (dto.tipo === 'egreso') {
       if (u.rol === 'supervisor' || u.rol === 'admin') autorizadoPor = u.id;
-      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u.empresaId);
+      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u);
       else throw new ForbiddenException('Los retiros de caja requieren autorización de un supervisor');
     }
     return this.db.transaction(async (c) => {

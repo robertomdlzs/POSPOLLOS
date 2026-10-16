@@ -49,7 +49,7 @@ npm run test:flujo            # 22 verificaciones del flujo completo
 ## Estructura
 
 ```
-db/migraciones/     SQL versionado (001 esquema, 002 sesiones y seguridad)
+db/migraciones/     SQL versionado (001 esquema, 002 sesiones, 003 fotos, 004 tandas de ítems, 005 bloqueo de autorizaciones)
 scripts/            migrar.mjs, semilla.mjs
 src/
   auth/             login PIN y contraseña, refresh rotativo, PIN de supervisor
@@ -107,7 +107,7 @@ Cada conexión entra a la sala de su sede, así que una sede nunca ve comandas d
 
 - **Todo es privado por defecto.** Los guards globales exigen token y rol; solo `@Publico()` abre una ruta.
 - **Access token de 15 min y refresh token de un solo uso.** El refresh se guarda como hash SHA-256. Si alguien reutiliza uno ya usado, se cierran todas las sesiones de ese usuario y queda en auditoría.
-- **Fuerza bruta:** 5 PIN errados bloquean al usuario 5 minutos (423), y los logins tienen límite de 10 por minuto por IP (429).
+- **Fuerza bruta:** 5 PIN errados bloquean al usuario 5 minutos (423), y los logins tienen límite de 10 por minuto por IP (429). En las autorizaciones de supervisor, los 5 intentos fallidos bloquean a quien las pide, no al supervisor, y cada fallo queda en auditoría.
 - **Acciones sensibles con PIN de supervisor:** descuentos, anular ítems ya enviados a cocina, anular ventas y retiros de caja. Todo queda en `auditoria`, que la base de datos no deja editar ni borrar.
 - **El servidor calcula los totales.** El cliente solo dice qué productos y cuánto paga con cada método; si no cuadra, no cobra.
 - **Idempotencia** al crear pedidos, al agregarles productos y al cobrar: un reintento por mala señal no duplica nada.
