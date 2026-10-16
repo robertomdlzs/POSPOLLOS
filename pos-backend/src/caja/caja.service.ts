@@ -8,6 +8,7 @@ import {
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AuthService } from '../auth/auth.service';
 import { aCentavos, aPesos } from '../common/dinero';
+import { tienePermiso } from '../common/permisos';
 import type { UsuarioToken } from '../common/tipos';
 import { DatabaseService, Db } from '../database/database.service';
 import { AbrirTurnoDto, CerrarTurnoDto, MovimientoCajaDto } from './caja.dto';
@@ -51,7 +52,7 @@ export class CajaService {
     );
     if (!turno) throw new NotFoundException(`No hay turno abierto en ${caja}`);
     const resumen = await this.resumen(turno.id);
-    if (u.rol === 'supervisor' || u.rol === 'admin') return { ...turno, ciego: false, resumen };
+    if (tienePermiso(u, 'caja.ver_esperado')) return { ...turno, ciego: false, resumen };
 
     // Cierre a ciegas: el cajero no ve cuánto efectivo debería haber, para que
     // cuente lo que hay y no lo que el sistema espera. Se quita también el total
@@ -64,8 +65,8 @@ export class CajaService {
   async movimiento(turnoId: string, dto: MovimientoCajaDto, u: UsuarioToken) {
     let autorizadoPor: string | null = null;
     if (dto.tipo === 'egreso') {
-      if (u.rol === 'supervisor' || u.rol === 'admin') autorizadoPor = u.id;
-      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u);
+      if (tienePermiso(u, 'caja.retiro')) autorizadoPor = u.id;
+      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarAutorizacion(dto.autorizacion, 'caja.retiro', u);
       else throw new ForbiddenException('Los retiros de caja requieren autorización de un supervisor');
     }
     return this.db.transaction(async (c) => {

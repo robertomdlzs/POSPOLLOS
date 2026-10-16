@@ -159,6 +159,18 @@ esperar(403, await api('POST', '/ventas/cobrar', {
 }), 'descuento sin supervisor');
 ok('Un descuento sin PIN de supervisor se rechaza');
 
+const autorizadores = await api('GET', '/auth/autorizadores?permiso=venta.descuento', { token: cajero.accessToken });
+esperar(200, autorizadores, 'autorizadores');
+const nombres = autorizadores.data.map((a) => a.nombre);
+assert.ok(nombres.includes(supervisora.nombre) && nombres.includes(quien('admin').nombre), nombres.join(', '));
+assert.ok(!nombres.includes(quien('cajero').nombre), 'el cajero no debe poder aprobar descuentos');
+esperar(403, await api('POST', '/ventas/cobrar', {
+  token: cajero.accessToken,
+  body: { ...baseCobro, idempotencyKey: randomUUID(), pagos: [{ metodo: 'efectivo', monto: 66000 }],
+          autorizacion: { supervisorId: quien('cajero').id, pin: '1111' } },
+}), 'cajero aprobando su propio descuento');
+ok(`Aprueban descuentos quienes tienen el permiso (${nombres.join(', ')}); el cajero, con su propio PIN, no`);
+
 esperar(400, await api('POST', '/ventas/cobrar', {
   token: cajero.accessToken,
   body: { ...baseCobro, idempotencyKey: randomUUID(), pagos: [{ metodo: 'efectivo', monto: 60000 }],

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsUUID } from 'class-validator';
-import { Roles, UsuarioActual } from '../common/decoradores';
+import { RequierePermiso, UsuarioActual } from '../common/decoradores';
 import { ESTADOS_ITEM_COCINA } from '../common/tipos';
 import type { UsuarioToken } from '../common/tipos';
 import { CocinaService } from './cocina.service';
@@ -19,7 +19,7 @@ class FiltroCocinaDto {
 
 @ApiTags('Cocina')
 @Controller('cocina')
-@Roles('cocina', 'mesero', 'supervisor')
+@RequierePermiso('cocina.operar')
 export class CocinaController {
   constructor(private readonly cocina: CocinaService) {}
 

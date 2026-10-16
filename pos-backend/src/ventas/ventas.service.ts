@@ -9,6 +9,7 @@ import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AuthService } from '../auth/auth.service';
 import { CAJA_POR_DEFECTO } from '../caja/caja.service';
 import { aCentavos, aPesos, calcularTotales } from '../common/dinero';
+import { tienePermiso } from '../common/permisos';
 import type { UsuarioToken } from '../common/tipos';
 import { DatabaseService, Db } from '../database/database.service';
 import { PedidosService } from '../pedidos/pedidos.service';
@@ -32,8 +33,8 @@ export class VentasService {
 
     let autorizadoPor: string | null = null;
     if (descuento > 0) {
-      if (u.rol === 'supervisor' || u.rol === 'admin') autorizadoPor = u.id;
-      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u);
+      if (tienePermiso(u, 'venta.descuento')) autorizadoPor = u.id;
+      else if (dto.autorizacion) autorizadoPor = await this.auth.verificarAutorizacion(dto.autorizacion, 'venta.descuento', u);
       else throw new ForbiddenException('El descuento requiere autorización de un supervisor');
     }
 
@@ -127,7 +128,7 @@ export class VentasService {
   }
 
   async anular(ventaId: string, dto: AnularVentaDto, u: UsuarioToken) {
-    const supervisorId = await this.auth.verificarSupervisor(dto.autorizacion, u);
+    const supervisorId = await this.auth.verificarAutorizacion(dto.autorizacion, 'venta.anular', u);
     await this.db.transaction(async (c) => {
       const v = await this.db.one(
         `SELECT v.id, v.estado, v.pedido_id, v.factura_cufe, t.estado AS turno_estado

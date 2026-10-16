@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags } from '@nestjs/swagger';
 import { Publico, UsuarioActual } from '../common/decoradores';
 import { INGRESOS_POR_IP, RutaIngreso } from '../common/limites';
 import type { UsuarioToken } from '../common/tipos';
-import { DesbloquearDto, LoginPasswordDto, LoginPinDto, RefreshDto } from './auth.dto';
+import { AutorizadoresDto, DesbloquearDto, LoginPasswordDto, LoginPinDto, RefreshDto } from './auth.dto';
 import { AuthService } from './auth.service';
 
 // Contra fuerza bruta: tope por IP para todos los usuarios juntos, más el límite
@@ -61,6 +61,12 @@ export class AuthController {
   @HttpCode(204)
   async desbloquear(@Body() dto: DesbloquearDto, @UsuarioActual() u: UsuarioToken) {
     await this.auth.desbloquear(u, dto.pin);
+  }
+
+  /** Quiénes pueden aprobar con su PIN una acción: para el teclado de autorización */
+  @Get('autorizadores')
+  autorizadores(@Query() q: AutorizadoresDto, @UsuarioActual() u: UsuarioToken) {
+    return this.auth.autorizadores(q.permiso, u);
   }
 
   @Get('yo')

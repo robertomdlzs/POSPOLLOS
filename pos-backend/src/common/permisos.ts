@@ -83,6 +83,9 @@ export const TODOS_LOS_PERMISOS = Object.keys(PERMISOS) as Permiso[];
 
 export const esPermiso = (p: string): p is Permiso => p in PERMISOS;
 
+/** ¿El usuario de la sesión puede hacer esto? */
+export const tienePermiso = (u: { permisos: readonly string[] }, p: Permiso) => u.permisos.includes(p);
+
 /** Clave del rol de fábrica que tiene todos los permisos */
 export const CLAVE_ADMIN = 'admin';
 

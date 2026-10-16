@@ -1,13 +1,14 @@
 import { createParamDecorator, ExecutionContext, SetMetadata } from '@nestjs/common';
-import { Rol, UsuarioToken } from './tipos';
+import type { Permiso } from './permisos';
+import type { UsuarioToken } from './tipos';
 
 export const ES_PUBLICO = 'esPublico';
 /** La ruta no exige token */
 export const Publico = () => SetMetadata(ES_PUBLICO, true);
 
-export const ROLES_PERMITIDOS = 'rolesPermitidos';
-/** Roles que pueden usar la ruta (admin siempre puede) */
-export const Roles = (...roles: Rol[]) => SetMetadata(ROLES_PERMITIDOS, roles);
+export const PERMISOS_REQUERIDOS = 'permisosRequeridos';
+/** La ruta exige alguno de estos permisos (el admin los tiene todos) */
+export const RequierePermiso = (...permisos: Permiso[]) => SetMetadata(PERMISOS_REQUERIDOS, permisos);
 
 export const UsuarioActual = createParamDecorator(
   (_: unknown, ctx: ExecutionContext): UsuarioToken => ctx.switchToHttp().getRequest().user,

@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Roles, UsuarioActual } from '../common/decoradores';
+import { RequierePermiso, UsuarioActual } from '../common/decoradores';
 import type { UsuarioToken } from '../common/tipos';
 import { InventarioService } from './inventario.service';
 
 @ApiTags('Inventario')
 @Controller('inventario')
-@Roles('supervisor', 'cajero')
+@RequierePermiso('inventario.ver')
 export class InventarioController {
   constructor(private readonly inventario: InventarioService) {}
 

@@ -2,8 +2,8 @@ import { ForbiddenException, UnauthorizedException, type ExecutionContext } from
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { describe, expect, it } from 'vitest';
-import { ES_PUBLICO, ROLES_PERMITIDOS } from './decoradores';
-import { JwtAuthGuard, RolesGuard } from './guards';
+import { ES_PUBLICO, PERMISOS_REQUERIDOS } from './decoradores';
+import { JwtAuthGuard, PermisosGuard } from './guards';
 import { RevocacionService } from './revocacion';
 
 const jwt = new JwtService({ secret: 'secreto-solo-para-pruebas-unitarias-0123456789' });
@@ -19,7 +19,8 @@ function contexto(req: any, metadatos: Record<string, unknown> = {}): ExecutionC
   } as unknown as ExecutionContext;
 }
 
-const firmar = () => jwt.sign({ sub: 'u1', nombre: 'Ana', rol: 'cajero', empresaId: 'e1', sedeId: 'sd1', sid: 's1' });
+const firmar = (extra: object = {}) =>
+  jwt.sign({ sub: 'u1', nombre: 'Ana', rolId: 'r1', rol: 'Caja', permisos: ['venta.cobrar'], empresaId: 'e1', sedeId: 'sd1', sid: 's1', ...extra });
 const conToken = (token: string) => ({ headers: { authorization: `Bearer ${token}` } });
 
 describe('JwtAuthGuard', () => {
@@ -40,7 +41,25 @@ describe('JwtAuthGuard', () => {
   it('deja el usuario del token en req.user', () => {
     const req: any = conToken(firmar());
     expect(nuevo().canActivate(contexto(req))).toBe(true);
-    expect(req.user).toEqual({ id: 'u1', nombre: 'Ana', rol: 'cajero', empresaId: 'e1', sedeId: 'sd1', sesionId: 's1' });
+    expect(req.user).toEqual({
+      id: 'u1',
+      nombre: 'Ana',
+      rolId: 'r1',
+      rol: 'Caja',
+      permisos: ['venta.cobrar'],
+      empresaId: 'e1',
+      sedeId: 'sd1',
+      sesionId: 's1',
+    });
+  });
+
+  it('descarta permisos que no existen en el catálogo y un token viejo sin permisos no tiene ninguno', () => {
+    const req: any = conToken(firmar({ permisos: ['venta.cobrar', 'todo.poderoso'] }));
+    nuevo().canActivate(contexto(req));
+    expect(req.user.permisos).toEqual(['venta.cobrar']);
+    const viejo: any = conToken(firmar({ permisos: undefined }));
+    nuevo().canActivate(contexto(viejo));
+    expect(viejo.user.permisos).toEqual([]);
   });
 
   it('rechaza el token de una sesión revocada', () => {
@@ -51,21 +70,21 @@ describe('JwtAuthGuard', () => {
   });
 });
 
-describe('RolesGuard', () => {
-  const g = new RolesGuard(new Reflector());
-  const con = (rol: string, permitidos?: string[]) =>
-    contexto({ user: { rol } }, permitidos ? { [ROLES_PERMITIDOS]: permitidos } : {});
+describe('PermisosGuard', () => {
+  const g = new PermisosGuard(new Reflector());
+  const con = (permisos: string[], requeridos?: string[]) =>
+    contexto({ user: { permisos } }, requeridos ? { [PERMISOS_REQUERIDOS]: requeridos } : {});
 
-  it('sin roles declarados deja pasar a cualquiera con sesión', () => {
-    expect(g.canActivate(con('cocina'))).toBe(true);
+  it('sin permisos declarados deja pasar a cualquiera con sesión', () => {
+    expect(g.canActivate(con([]))).toBe(true);
   });
 
-  it('deja pasar los roles permitidos y al admin', () => {
-    expect(g.canActivate(con('cajero', ['cajero', 'supervisor']))).toBe(true);
-    expect(g.canActivate(con('admin', ['cajero']))).toBe(true);
+  it('deja pasar a quien tiene alguno de los permisos pedidos', () => {
+    expect(g.canActivate(con(['caja.operar', 'venta.cobrar'], ['venta.cobrar']))).toBe(true);
+    expect(g.canActivate(con(['pedido.tomar'], ['venta.cobrar', 'pedido.tomar']))).toBe(true);
   });
 
-  it('rechaza los demás roles con 403', () => {
-    expect(() => g.canActivate(con('mesero', ['cajero']))).toThrow(ForbiddenException);
+  it('rechaza con 403 a quien no tiene ninguno', () => {
+    expect(() => g.canActivate(con(['pedido.tomar'], ['caja.operar']))).toThrow(ForbiddenException);
   });
 });

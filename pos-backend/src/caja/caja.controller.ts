@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
-import { Roles, UsuarioActual } from '../common/decoradores';
+import { RequierePermiso, UsuarioActual } from '../common/decoradores';
 import type { UsuarioToken } from '../common/tipos';
 import { AbrirTurnoDto, CerrarTurnoDto, MovimientoCajaDto } from './caja.dto';
 import { CajaService } from './caja.service';
@@ -15,7 +15,7 @@ class FiltroCajaDto {
 
 @ApiTags('Caja')
 @Controller('caja')
-@Roles('cajero', 'supervisor')
+@RequierePermiso('caja.operar')
 export class CajaController {
   constructor(private readonly caja: CajaService) {}
 

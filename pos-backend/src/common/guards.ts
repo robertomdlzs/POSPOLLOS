@@ -7,12 +7,23 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { ES_PUBLICO, ROLES_PERMITIDOS } from './decoradores';
+import { ES_PUBLICO, PERMISOS_REQUERIDOS } from './decoradores';
+import { esPermiso, type Permiso } from './permisos';
 import { emitidoEn, RevocacionService } from './revocacion';
-import { Rol, UsuarioToken } from './tipos';
+import type { UsuarioToken } from './tipos';
 
 export function tokenAUsuario(p: any): UsuarioToken {
-  return { id: p.sub, nombre: p.nombre, rol: p.rol, empresaId: p.empresaId, sedeId: p.sedeId, sesionId: p.sid };
+  return {
+    id: p.sub,
+    nombre: p.nombre,
+    rolId: p.rolId,
+    rol: p.rol,
+    // Un token sin permisos (emitido antes de la migración 006) no puede hacer nada
+    permisos: Array.isArray(p.permisos) ? p.permisos.filter(esPermiso) : [],
+    empresaId: p.empresaId,
+    sedeId: p.sedeId,
+    sesionId: p.sid,
+  };
 }
 
 @Injectable()
@@ -46,16 +57,16 @@ export class JwtAuthGuard implements CanActivate {
 }
 
 @Injectable()
-export class RolesGuard implements CanActivate {
+export class PermisosGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(ctx: ExecutionContext): boolean {
     if (ctx.getType() !== 'http') return true;
-    const roles = this.reflector.getAllAndOverride<Rol[]>(ROLES_PERMITIDOS, [ctx.getHandler(), ctx.getClass()]);
-    if (!roles?.length) return true;
+    const requeridos = this.reflector.getAllAndOverride<Permiso[]>(PERMISOS_REQUERIDOS, [ctx.getHandler(), ctx.getClass()]);
+    if (!requeridos?.length) return true;
     const usuario: UsuarioToken | undefined = ctx.switchToHttp().getRequest().user;
     if (!usuario) return true; // ruta pública
-    if (usuario.rol === 'admin' || roles.includes(usuario.rol)) return true;
+    if (requeridos.some((p) => usuario.permisos.includes(p))) return true;
     throw new ForbiddenException('Tu rol no tiene permiso para esta acción');
   }
 }

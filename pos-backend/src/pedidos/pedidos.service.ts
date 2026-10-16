@@ -10,6 +10,7 @@ import { AuthService } from '../auth/auth.service';
 import { CocinaGateway } from '../cocina/cocina.gateway';
 import { CocinaService } from '../cocina/cocina.service';
 import { aPesos, calcularTotales } from '../common/dinero';
+import { tienePermiso } from '../common/permisos';
 import type { UsuarioToken } from '../common/tipos';
 import { DatabaseService, Db } from '../database/database.service';
 import { AgregarItemsDto, AnularItemDto, CrearPedidoDto, ItemPedidoDto } from './pedidos.dto';
@@ -147,8 +148,8 @@ export class PedidosService {
       // Lo que ya salió a cocina cuesta plata: solo un supervisor lo puede anular
       let autorizadoPor: string | null = null;
       if (item.enviado_cocina_en) {
-        if (u.rol === 'supervisor' || u.rol === 'admin') autorizadoPor = u.id;
-        else if (dto.autorizacion) autorizadoPor = await this.auth.verificarSupervisor(dto.autorizacion, u);
+        if (tienePermiso(u, 'pedido.anular_enviado')) autorizadoPor = u.id;
+        else if (dto.autorizacion) autorizadoPor = await this.auth.verificarAutorizacion(dto.autorizacion, 'pedido.anular_enviado', u);
         else throw new ForbiddenException('Este producto ya está en cocina: se requiere autorización de un supervisor');
       }
 

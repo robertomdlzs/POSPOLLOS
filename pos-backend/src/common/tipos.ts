@@ -1,11 +1,14 @@
-export const ROLES = ['admin', 'supervisor', 'cajero', 'mesero', 'cocina'] as const;
-export type Rol = (typeof ROLES)[number];
+import type { Permiso } from './permisos';
 
 /** Lo que viaja dentro del access token y queda en req.user */
 export interface UsuarioToken {
   id: string;
   nombre: string;
-  rol: Rol;
+  rolId: string;
+  /** Nombre del rol en la sede, para mostrar y para los logs */
+  rol: string;
+  /** Lo que puede hacer en la sede: es lo único que se revisa para autorizar */
+  permisos: Permiso[];
   empresaId: string;
   sedeId: string;
   /** Sesión (refresh token) de la que salió el token; sirve para revocarla al cerrar sesión */

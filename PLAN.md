@@ -91,7 +91,7 @@ Hoy los roles son un `ENUM` fijo. Se pasa a permisos por acción y a roles que d
 
   Los cinco roles actuales se crean como roles de sistema con sus permisos de hoy, y la columna `usuario.rol` se mantiene durante la transición.
 - [x] **1.1.2 Catálogo de permisos en el código** (S). Un archivo con los códigos (`pedido.crear`, `pedido.anular_item`, `venta.cobrar`, `venta.descuento`, `caja.retiro`, `menu.editar`, `usuario.editar`, `reporte.ver`, `auditoria.ver`, etc.), cada uno con su descripción en español para la pantalla.
-- [ ] **1.1.3 Guard `@Permiso()`** (M). Reemplaza `@Roles()` en todos los controladores. Los permisos viajan en el access token. Las autorizaciones de supervisor pasan a exigir un permiso concreto (`venta.descuento`, por ejemplo) en lugar del rol "supervisor".
+- [x] **1.1.3 Guard `@Permiso()`** (M). Reemplaza `@Roles()` en todos los controladores. Los permisos viajan en el access token. Las autorizaciones de supervisor pasan a exigir un permiso concreto (`venta.descuento`, por ejemplo) en lugar del rol "supervisor".
 - [ ] **1.1.4 Frontend por permisos** (S). `SECCIONES` y los botones se muestran según los permisos, no según el rol.
 - [ ] **1.1.5 Retirar el `ENUM`** (S). Migración que elimina `usuario.rol` cuando todo use permisos.
 

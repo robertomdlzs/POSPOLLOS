@@ -10,8 +10,9 @@ import bcrypt from 'bcryptjs';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AutorizacionDto } from '../common/dto';
+import { PERMISOS, permisosDeRol, type Permiso } from '../common/permisos';
 import { RevocacionService } from '../common/revocacion';
-import type { Rol, UsuarioToken } from '../common/tipos';
+import type { UsuarioToken } from '../common/tipos';
 import { config } from '../config';
 import { DatabaseService, Db } from '../database/database.service';
 import { LoginPasswordDto, LoginPinDto } from './auth.dto';
@@ -25,13 +26,19 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 interface UsuarioFila {
   id: string;
   nombre: string;
-  rol: Rol;
   empresa_id: string;
   activo: boolean;
   pin_hash: string | null;
   password_hash: string | null;
   intentos_fallidos: number;
   bloqueado_hasta: Date | null;
+}
+
+interface RolEnSede {
+  id: string;
+  nombre: string;
+  clave: string | null;
+  permisos: Permiso[];
 }
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -45,11 +52,38 @@ export class AuthService {
     private readonly revocacion: RevocacionService,
   ) {}
 
-  /** Lista para la pantalla de "toca tu nombre y escribe tu PIN" */
+  /**
+   * Lista para la pantalla de "toca tu nombre y escribe tu PIN": quienes tienen
+   * PIN y un rol en alguna sede. `rol` es la clave del rol de fábrica (o null);
+   * se conserva mientras el frontend pasa a usar rolNombre y permisos.
+   */
   usuariosConPin() {
     return this.db.query(
-      `SELECT id, nombre, rol FROM usuario WHERE activo AND pin_hash IS NOT NULL ORDER BY nombre`,
+      `SELECT DISTINCT ON (u.nombre, u.id) u.id, u.nombre, r.nombre AS "rolNombre", r.clave AS "rolClave", r.clave AS rol
+         FROM usuario u
+         JOIN usuario_sede_rol x ON x.usuario_id = u.id
+         JOIN sede s ON s.id = x.sede_id AND s.activa
+         JOIN rol r ON r.id = x.rol_id
+        WHERE u.activo AND u.pin_hash IS NOT NULL
+        ORDER BY u.nombre, u.id, s.creado_en`,
     );
+  }
+
+  /** Quienes pueden aprobar con su PIN una acción que exige `permiso`, en la sede de quien pide */
+  async autorizadores(permiso: Permiso, u: UsuarioToken) {
+    const filas = await this.db.query<{ id: string; nombre: string; clave: string | null; permisos: string[] }>(
+      `SELECT us.id, us.nombre, r.clave,
+              COALESCE(array_agg(rp.permiso) FILTER (WHERE rp.permiso IS NOT NULL), '{}') AS permisos
+         FROM usuario_sede_rol x
+         JOIN usuario us ON us.id = x.usuario_id AND us.activo AND us.pin_hash IS NOT NULL
+         JOIN rol r ON r.id = x.rol_id
+         LEFT JOIN rol_permiso rp ON rp.rol_id = r.id
+        WHERE x.sede_id = $1
+        GROUP BY us.id, r.id
+        ORDER BY us.nombre`,
+      [u.sedeId],
+    );
+    return filas.filter((f) => permisosDeRol(f.clave, f.permisos).includes(permiso)).map(({ id, nombre }) => ({ id, nombre }));
   }
 
   async loginPin(dto: LoginPinDto, dispositivo?: string) {
@@ -86,7 +120,7 @@ export class AuthService {
     const resultado = await this.db.transaction(async (c): Promise<Resultado> => {
       const s = await this.db.one(
         `SELECT s.id, s.usuario_id, s.sede_id, s.token_hash, s.expira_en, s.revocada_en,
-                u.nombre, u.rol, u.empresa_id, u.activo
+                u.nombre, u.empresa_id, u.activo
            FROM sesion s JOIN usuario u ON u.id = s.usuario_id
           WHERE s.id = $1
           FOR UPDATE OF s`,
@@ -98,7 +132,8 @@ export class AuthService {
       if (new Date(s.expira_en) < new Date() || !s.activo) return { invalida: true };
 
       await this.db.query(`UPDATE sesion SET revocada_en = now() WHERE id = $1`, [s.id], c);
-      const usuario = { id: s.usuario_id, nombre: s.nombre, rol: s.rol, empresa_id: s.empresa_id };
+      // Los permisos se vuelven a leer: un cambio de rol se aplica al renovar el token
+      const usuario = { id: s.usuario_id, nombre: s.nombre, empresa_id: s.empresa_id };
       return { sesion: await this.crearSesion(c, usuario, s.sede_id, dispositivo) };
     });
 
@@ -142,15 +177,16 @@ export class AuthService {
   }
 
   /**
-   * Valida el PIN de un supervisor (o admin) para autorizar descuentos,
-   * anulaciones, retiros de caja, etc. Devuelve su id para la auditoría.
+   * Valida el PIN de quien aprueba una acción sensible (descuento, anulación,
+   * retiro de caja…): tiene que tener `permiso` en la sede de quien la pide.
+   * Devuelve su id para la auditoría.
    *
    * Los intentos fallidos se cuentan contra quien pide la autorización y no
    * contra el supervisor, para que un cajero no lo pueda dejar bloqueado.
    * Estas consultas van por el pool, fuera de la transacción de quien llama,
    * para que el contador no se revierta junto con la acción rechazada.
    */
-  async verificarSupervisor(aut: AutorizacionDto, solicitante: UsuarioToken): Promise<string> {
+  async verificarAutorizacion(aut: AutorizacionDto, permiso: Permiso, solicitante: UsuarioToken): Promise<string> {
     const s = await this.db.one<{ autorizacion_bloqueada_hasta: Date | null; intentos_autorizacion: number }>(
       `SELECT autorizacion_bloqueada_hasta, intentos_autorizacion FROM usuario WHERE id = $1`,
       [solicitante.id],
@@ -165,8 +201,9 @@ export class AuthService {
     } catch (e) {
       if (!(e instanceof UnauthorizedException)) throw e;
     }
-    const esSupervisor = !!sup && sup.empresa_id === solicitante.empresaId && (sup.rol === 'supervisor' || sup.rol === 'admin');
-    if (!esSupervisor) {
+    const rol = sup && sup.empresa_id === solicitante.empresaId ? await this.rolEnSede(sup.id, solicitante.sedeId) : null;
+    const puede = !!rol?.permisos.includes(permiso);
+    if (!puede) {
       await this.db.query(
         `UPDATE usuario
             SET autorizacion_bloqueada_hasta = CASE WHEN intentos_autorizacion + 1 >= $2
@@ -181,7 +218,9 @@ export class AuthService {
         entidad: 'usuario',
         entidadId: aut.supervisorId,
       });
-      throw new ForbiddenException(sup ? 'Se requiere autorización de un supervisor' : 'Autorización de supervisor inválida');
+      throw new ForbiddenException(
+        sup ? `${sup.nombre.split(' ')[0]} no puede aprobar esto: ${PERMISOS[permiso].descripcion.toLowerCase()}` : 'Autorización de supervisor inválida',
+      );
     }
     if (s && (s.intentos_autorizacion > 0 || s.autorizacion_bloqueada_hasta)) {
       await this.db.query(
@@ -202,7 +241,7 @@ export class AuthService {
     contarFallos = true,
   ): Promise<UsuarioFila> {
     const u = await this.db.one<UsuarioFila>(
-      `SELECT id, nombre, rol, empresa_id, activo, pin_hash, password_hash, intentos_fallidos, bloqueado_hasta
+      `SELECT id, nombre, empresa_id, activo, pin_hash, password_hash, intentos_fallidos, bloqueado_hasta
          FROM usuario WHERE id = $1`,
       [usuarioId],
     );
@@ -245,13 +284,31 @@ export class AuthService {
     return sedes[0].id;
   }
 
+  /** Rol del usuario en la sede, con sus permisos efectivos; null si no tiene */
+  private async rolEnSede(usuarioId: string, sedeId: string, db?: Db): Promise<RolEnSede | null> {
+    const r = await this.db.one<{ id: string; nombre: string; clave: string | null; permisos: string[] }>(
+      `SELECT r.id, r.nombre, r.clave,
+              COALESCE(array_agg(rp.permiso) FILTER (WHERE rp.permiso IS NOT NULL), '{}') AS permisos
+         FROM usuario_sede_rol x
+         JOIN rol r ON r.id = x.rol_id
+         LEFT JOIN rol_permiso rp ON rp.rol_id = r.id
+        WHERE x.usuario_id = $1 AND x.sede_id = $2
+        GROUP BY r.id`,
+      [usuarioId, sedeId],
+      db,
+    );
+    return r ? { id: r.id, nombre: r.nombre, clave: r.clave, permisos: permisosDeRol(r.clave, r.permisos) } : null;
+  }
+
   private async crearSesion(
     db: Db,
-    u: Pick<UsuarioFila, 'id' | 'nombre' | 'rol' | 'empresa_id'>,
+    u: Pick<UsuarioFila, 'id' | 'nombre' | 'empresa_id'>,
     sedeId: string | undefined,
     dispositivo?: string,
   ) {
     const sede = await this.resolverSede(db, u.empresa_id, sedeId);
+    const rol = await this.rolEnSede(u.id, sede, db);
+    if (!rol) throw new ForbiddenException('No tienes un rol asignado en esta sede');
     const secreto = randomBytes(32).toString('base64url');
     const sesion = await this.db.one<{ id: string }>(
       `INSERT INTO sesion (usuario_id, sede_id, token_hash, expira_en, dispositivo)
@@ -264,7 +321,9 @@ export class AuthService {
       sid: sesion!.id,
       emi: Date.now(),
       nombre: u.nombre,
-      rol: u.rol,
+      rolId: rol.id,
+      rol: rol.nombre,
+      permisos: rol.permisos,
       empresaId: u.empresa_id,
       sedeId: sede,
     });
@@ -272,7 +331,15 @@ export class AuthService {
       accessToken,
       refreshToken: `${sesion!.id}.${secreto}`,
       expiraEnSegundos: config.accessTtlSegundos,
-      usuario: { id: u.id, nombre: u.nombre, rol: u.rol, sedeId: sede },
+      usuario: {
+        id: u.id,
+        nombre: u.nombre,
+        rolNombre: rol.nombre,
+        // Clave del rol de fábrica; se conserva mientras el frontend pasa a usar permisos
+        rol: rol.clave,
+        permisos: rol.permisos,
+        sedeId: sede,
+      },
     };
   }
 

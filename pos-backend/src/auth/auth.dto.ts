@@ -1,4 +1,5 @@
-import { IsEmail, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
+import { TODOS_LOS_PERMISOS, type Permiso } from '../common/permisos';
 
 export class LoginPinDto {
   @IsUUID()
@@ -33,6 +34,11 @@ export class DesbloquearDto {
   @Length(4, 8)
   @Matches(/^\d+$/, { message: 'El PIN solo lleva números' })
   pin: string;
+}
+
+export class AutorizadoresDto {
+  @IsIn(TODOS_LOS_PERMISOS, { message: 'Permiso desconocido' })
+  permiso: Permiso;
 }
 
 export class RefreshDto {

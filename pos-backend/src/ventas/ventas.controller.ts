@@ -1,13 +1,13 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Roles, UsuarioActual } from '../common/decoradores';
+import { RequierePermiso, UsuarioActual } from '../common/decoradores';
 import type { UsuarioToken } from '../common/tipos';
 import { AnularVentaDto, CobrarDto } from './ventas.dto';
 import { VentasService } from './ventas.service';
 
 @ApiTags('Ventas')
 @Controller('ventas')
-@Roles('cajero', 'supervisor')
+@RequierePermiso('venta.cobrar')
 export class VentasController {
   constructor(private readonly ventas: VentasService) {}
 
