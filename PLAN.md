@@ -49,7 +49,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 
 ### 0.1 Fallos abiertos de la revisión
 
-- [ ] **0.1.1 Cierre de caja a ciegas** (S). La pantalla de caja deja de mostrar el efectivo esperado mientras el turno está abierto; el supervisor lo ve, el cajero no. El backend solo devuelve `monto_esperado` en el resultado del cierre o a quien tenga el permiso. *Prueba:* con el cajero, `GET /caja/turnos/actual` no trae el efectivo esperado.
+- [x] **0.1.1 Cierre de caja a ciegas** (S). La pantalla de caja deja de mostrar el efectivo esperado mientras el turno está abierto; el supervisor lo ve, el cajero no. El backend solo devuelve `monto_esperado` en el resultado del cierre o a quien tenga el permiso. *Prueba:* con el cajero, `GET /caja/turnos/actual` no trae el efectivo esperado.
 - [x] **0.1.2 `trust proxy`** (S). Configurarlo con la variable `TRUST_PROXY`, documentarlo y hacer que el límite de ingresos cuente por usuario además de por IP.
 - [x] **0.1.3 Montos con decimales en el frontend** (S). Reemplazar `num()` por un lector de montos en pesos que respete la coma decimal colombiana, en `Cobro.tsx` y `Caja.tsx`.
 - [x] **0.1.4 Cocina sin pedidos anulados** (S). `/cocina/pendientes` excluye los pedidos en estado `anulado`.
@@ -60,7 +60,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 ### 0.2 Pruebas y CI
 
 - [x] **0.2.1 Pruebas unitarias del backend** (M). Vitest. Cubrir `dinero.ts` (redondeos, impuestos, cantidades fraccionadas), guards, revocación y límites de ingreso. La validación de modificadores consulta la base, así que va en las pruebas de integración (0.2.2).
-- [ ] **0.2.2 Pruebas de integración con PostgreSQL** (L). Una base `pos_test` que se crea, se migra y se siembra antes de cada corrida. Pasar `tests/flujo.e2e.mjs` a este formato para que no exija el servidor levantado a mano.
+- [x] **0.2.2 Pruebas de integración con PostgreSQL** (L). `npm run test:integracion` rehace el esquema `pos_prueba` dentro de la base de `DATABASE_URL` (no hace falta permiso para crear bases), migra, siembra, arranca el servidor en el puerto 3199 y corre `tests/flujo.e2e.mjs`. Los datos reales no se tocan.
 - [ ] **0.2.3 CI en GitHub Actions** (M). En cada push: instalar, `tsc --noEmit`, pruebas del backend con PostgreSQL en un servicio de Actions, y `npm run build` del frontend. *Requiere* subir el repositorio a GitHub (privado).
 
 ### 0.3 Base técnica del backend

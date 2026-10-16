@@ -45,7 +45,7 @@ const login = async (rol, pin) => {
 esperar(401, await api('POST', '/auth/pin', { body: { usuarioId: quien('cocina').id, pin: '0001' } }), 'PIN errado');
 ok('PIN incorrecto rechazado');
 
-const cajero = await login('cajero', '1111');
+let cajero = await login('cajero', '1111');
 const mesera = await login('mesero', '2222');
 const cocina = await login('cocina', '3333');
 const supervisora = quien('supervisor');
@@ -60,7 +60,12 @@ const r1 = await api('POST', '/auth/refresh', { body: { refreshToken: cajero.ref
 esperar(200, r1, 'refresh');
 esperar(401, await api('POST', '/auth/refresh', { body: { refreshToken: cajero.refreshToken } }), 'refresh reutilizado');
 esperar(401, await api('POST', '/auth/refresh', { body: { refreshToken: r1.data.refreshToken } }), 'familia revocada');
-ok('Refresh token de un solo uso; reutilizarlo cierra todas las sesiones');
+esperar(401, await api('GET', '/auth/yo', { token: r1.data.accessToken }), 'access token tras el robo');
+ok('Refresh token de un solo uso; reutilizarlo cierra todas las sesiones y corta sus access tokens');
+
+cajero = await login('cajero', '1111');
+esperar(200, await api('GET', '/auth/yo', { token: cajero.accessToken }), 'volver a entrar tras la revocación');
+ok('Tras la revocación, el cajero puede volver a entrar de inmediato');
 
 // --- Menú y mesas --------------------------------------------------------
 const menu = (await api('GET', '/menu', { token: mesera.accessToken })).data;

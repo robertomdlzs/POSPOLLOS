@@ -14,7 +14,8 @@
     "db:semilla": "node scripts/semilla.mjs",
     "test:flujo": "node tests/flujo.e2e.mjs",
     "test": "vitest run",
-    "test:vigilar": "vitest"
+    "test:vigilar": "vitest",
+    "test:integracion": "node scripts/integracion.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.3",

@@ -28,7 +28,16 @@ CREATE DATABASE pos OWNER pos;
 
 Si `psql` no se reconoce, está en `C:\Program Files\PostgreSQL\<versión>\bin\psql.exe`. Se necesita PostgreSQL 14 o superior.
 
-### Prueba de flujo
+### Pruebas
+
+```bash
+npm test                      # unitarias, sin base de datos
+npm run test:integracion      # punta a punta en un esquema aparte (pos_prueba)
+```
+
+`test:integracion` rehace el esquema `pos_prueba` dentro de la base de `DATABASE_URL`, aplica migraciones y semilla, arranca el servidor en el puerto 3199 y corre el flujo completo. Tus datos no se tocan y no hace falta permiso para crear bases.
+
+### Prueba de flujo contra un servidor ya corriendo
 
 Con el servidor corriendo (en otra terminal) sobre una base recién sembrada:
 
