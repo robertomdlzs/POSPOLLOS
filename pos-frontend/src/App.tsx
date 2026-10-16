@@ -5,6 +5,7 @@ import { alCambiarSesion, cerrarSesion, obtenerSesion } from './api';
 import { ProveedorAvisos, useAvisar } from './componentes/Avisos';
 import { Bloqueo, useInactividad } from './componentes/Bloqueo';
 import { clienteDatos, useTiempoReal } from './datos';
+import { Muestra } from './pantallas/admin/Muestra';
 import { Caja } from './pantallas/Caja';
 import { Cocina } from './pantallas/Cocina';
 import { Ingreso } from './pantallas/Ingreso';
@@ -126,6 +127,7 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
           <Route path="/pedido/:id" element={conPermiso('mesas', <PaginaPedido rol={rol} puedeCaja={secciones.includes('caja')} />)} />
           <Route path="/caja" element={conPermiso('caja', <Caja rol={rol} />)} />
           <Route path="/cocina" element={conPermiso('cocina', <Cocina />)} />
+          <Route path="/admin/muestra" element={rol === 'admin' ? <Muestra /> : <Navigate to={inicio} replace />} />
           <Route path="*" element={<Navigate to={inicio} replace />} />
         </Routes>
       </main>

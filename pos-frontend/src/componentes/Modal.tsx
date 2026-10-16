@@ -12,7 +12,10 @@ export function Modal({ titulo, onCerrar, children, ancho = 'normal' }: Props) {
 
   useEffect(() => {
     const anterior = document.activeElement as HTMLElement | null;
-    caja.current?.querySelector<HTMLElement>('[data-autofoco], button, input, select')?.focus();
+    // Primero lo marcado con data-autofoco; si no hay, el primer control (que suele ser la ✕)
+    const destino =
+      caja.current?.querySelector<HTMLElement>('[data-autofoco]') ?? caja.current?.querySelector<HTMLElement>('button, input, select');
+    destino?.focus();
     const tecla = (e: KeyboardEvent) => e.key === 'Escape' && onCerrar();
     window.addEventListener('keydown', tecla);
     return () => {
