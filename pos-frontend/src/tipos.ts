@@ -112,10 +112,12 @@ export interface Autorizacion {
 
 export interface ResumenTurno {
   ventas: number;
-  totalVentas: string;
+  /** No llega en caja a ciegas (cajero con el turno abierto) */
+  totalVentas?: string;
   propinas: string;
   anuladas: number;
-  efectivo: string;
+  /** No llega en caja a ciegas */
+  efectivo?: string;
   porMetodo: Record<string, string>;
   ingresos: string;
   egresos: string;
@@ -126,6 +128,8 @@ export interface Turno {
   caja: string;
   abierto_en: string;
   monto_inicial: string;
+  /** true si quien consulta no puede ver el efectivo esperado */
+  ciego: boolean;
   resumen: ResumenTurno;
 }
 

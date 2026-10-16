@@ -50,7 +50,15 @@ export class CajaService {
       [u.sedeId, caja],
     );
     if (!turno) throw new NotFoundException(`No hay turno abierto en ${caja}`);
-    return { ...turno, resumen: await this.resumen(turno.id) };
+    const resumen = await this.resumen(turno.id);
+    if (u.rol === 'supervisor' || u.rol === 'admin') return { ...turno, ciego: false, resumen };
+
+    // Cierre a ciegas: el cajero no ve cuánto efectivo debería haber, para que
+    // cuente lo que hay y no lo que el sistema espera. Se quita también el total
+    // de ventas, porque restándole los otros métodos saldría el efectivo.
+    const { efectivo: _efectivo, totalVentas: _total, porMetodo, ...visible } = resumen;
+    const { efectivo: _cobrado, ...otrosMetodos } = porMetodo as Record<string, string>;
+    return { ...turno, ciego: true, resumen: { ...visible, porMetodo: otrosMetodos } };
   }
 
   async movimiento(turnoId: string, dto: MovimientoCajaDto, u: UsuarioToken) {

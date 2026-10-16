@@ -193,6 +193,17 @@ assert.equal(Number(pan.cantidad), 50 - 2);
 ok(`Inventario descontado por receta: carne ${carne.cantidad} g, pan ${pan.cantidad} und`);
 
 // --- Cierre de caja ------------------------------------------------------
+const vistaCajero = (await api('GET', '/caja/turnos/actual', { token: cajero.accessToken })).data;
+assert.equal(vistaCajero.ciego, true);
+assert.equal(vistaCajero.resumen.efectivo, undefined);
+assert.equal(vistaCajero.resumen.totalVentas, undefined);
+assert.equal(vistaCajero.resumen.porMetodo.efectivo, undefined);
+const jefa = await login('supervisor', '9999');
+const vistaSupervisora = (await api('GET', '/caja/turnos/actual', { token: jefa.accessToken })).data;
+assert.equal(vistaSupervisora.ciego, false);
+assert.equal(vistaSupervisora.resumen.efectivo, '50000.00');
+ok('Caja a ciegas: el cajero no ve el efectivo esperado; la supervisora sí');
+
 const cierre = await api('POST', `/caja/turnos/${turno.data.id}/cerrar`, { token: cajero.accessToken, body: { montoContado: 150000 } });
 esperar(200, cierre, 'cerrar turno');
 assert.equal(cierre.data.diferencia, '0.00');

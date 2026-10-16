@@ -86,7 +86,8 @@ export function Caja({ rol }: { rol: Rol }) {
   }
 
   const r = t.resumen;
-  const esperado = Number(t.monto_inicial) + Number(r.efectivo) + Number(r.ingresos) - Number(r.egresos);
+  // En caja a ciegas el servidor no manda el efectivo cobrado ni el total de ventas
+  const esperado = t.ciego ? null : Number(t.monto_inicial) + Number(r.efectivo) + Number(r.ingresos) - Number(r.egresos);
 
   return (
     <div className="caja-pantalla">
@@ -102,15 +103,22 @@ export function Caja({ rol }: { rol: Rol }) {
         </header>
 
         <div className="cifras">
-          <div className="cifra cifra-destacada">
-            <span>Efectivo que debe haber</span>
-            <strong>{pesos(esperado)}</strong>
-          </div>
+          {esperado === null ? (
+            <div className="cifra cifra-destacada">
+              <span>Cierre a ciegas</span>
+              <small>Al cerrar cuentas el efectivo del cajón y el sistema lo compara con lo que debería haber.</small>
+            </div>
+          ) : (
+            <div className="cifra cifra-destacada">
+              <span>Efectivo que debe haber</span>
+              <strong>{pesos(esperado)}</strong>
+            </div>
+          )}
           <div className="cifra">
             <span>Ventas</span>
-            <strong>{pesos(r.totalVentas)}</strong>
+            <strong>{r.totalVentas === undefined ? r.ventas : pesos(r.totalVentas)}</strong>
             <small>
-              {r.ventas} {r.ventas === 1 ? 'cuenta' : 'cuentas'}
+              {r.totalVentas === undefined ? (r.ventas === 1 ? 'cuenta' : 'cuentas') : `${r.ventas} ${r.ventas === 1 ? 'cuenta' : 'cuentas'}`}
               {r.anuladas > 0 && `, ${r.anuladas} anuladas`}
             </small>
           </div>
@@ -122,7 +130,7 @@ export function Caja({ rol }: { rol: Rol }) {
 
         <div className="caja-detalle">
           <table className="tabla">
-            <caption>Cobrado por método</caption>
+            <caption>{t.ciego ? 'Cobrado con otros métodos' : 'Cobrado por método'}</caption>
             <tbody>
               {Object.keys(r.porMetodo).length === 0 && (
                 <tr>
@@ -146,10 +154,12 @@ export function Caja({ rol }: { rol: Rol }) {
                 <td>Base</td>
                 <td>{pesos(t.monto_inicial)}</td>
               </tr>
-              <tr>
-                <td>Cobros en efectivo</td>
-                <td>{pesos(r.efectivo)}</td>
-              </tr>
+              {r.efectivo !== undefined && (
+                <tr>
+                  <td>Cobros en efectivo</td>
+                  <td>{pesos(r.efectivo)}</td>
+                </tr>
+              )}
               <tr>
                 <td>Ingresos</td>
                 <td>{pesos(r.ingresos)}</td>
