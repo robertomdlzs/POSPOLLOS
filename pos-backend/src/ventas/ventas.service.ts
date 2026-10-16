@@ -152,7 +152,7 @@ export class VentasService {
         c,
       );
       await this.db.query(`UPDATE pedido SET estado = 'anulado', actualizado_en = now() WHERE id = $1`, [v.pedido_id], c);
-      await this.moverInventario(c, u, v.pedido_id, ventaId, 1, 'devolucion');
+      await this.devolverInventario(c, u, ventaId);
       await this.auditoria.registrar(
         { usuarioId: u.id, autorizadoPor: supervisorId, accion: 'anular_venta', entidad: 'venta', entidadId: ventaId, datos: { motivo: dto.motivo } },
         c,
@@ -183,8 +183,8 @@ export class VentasService {
   }
 
   /**
-   * Descuenta (signo -1) o devuelve (signo +1) los insumos de las recetas
-   * de los productos que controlan stock. El trigger actualiza stock_insumo.
+   * Descuenta (signo -1) los insumos de las recetas de los productos que
+   * controlan stock. El trigger actualiza stock_insumo.
    */
   private async moverInventario(db: Db, u: UsuarioToken, pedidoId: string, ventaId: string, signo: 1 | -1, tipo: string) {
     await this.db.query(
@@ -197,6 +197,21 @@ export class VentasService {
         WHERE i.pedido_id = $6 AND i.estado <> 'anulado'
         GROUP BY r.insumo_id, ins.costo_unitario`,
       [u.sedeId, tipo, signo, ventaId, u.id, pedidoId],
+      db,
+    );
+  }
+
+  /**
+   * Revierte exactamente lo que descontó la venta, con sus cantidades y costos
+   * originales: si la receta o el costo cambiaron después, no importa.
+   */
+  private async devolverInventario(db: Db, u: UsuarioToken, ventaId: string) {
+    await this.db.query(
+      `INSERT INTO movimiento_inventario (sede_id, insumo_id, tipo, cantidad, costo_unitario, referencia_id, usuario_id, nota)
+       SELECT sede_id, insumo_id, 'devolucion', -cantidad, costo_unitario, referencia_id, $2, 'Anulación de venta'
+         FROM movimiento_inventario
+        WHERE referencia_id = $1 AND tipo = 'venta'`,
+      [ventaId, u.id],
       db,
     );
   }
