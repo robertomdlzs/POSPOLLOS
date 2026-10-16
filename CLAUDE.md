@@ -45,10 +45,11 @@ Admin `admin@demo.co` / `CambiaEsto123!` (PIN 0000) · Supervisora 9999 · Cajer
 
 ## Pendiente conocido
 
-Ver la sección 10 de HISTORIA.md. Además, fallos encontrados en la revisión del 15-oct-2026, sin corregir todavía:
+Ver la sección 10 de HISTORIA.md. Los 5 fallos principales de la revisión del 15-oct-2026 ya están corregidos (PIN en auditoría, mesa bloqueada, idempotencia de ítems, bloqueo del supervisor, devolución de inventario). Siguen abiertos, de menor gravedad:
 
-1. El PIN del supervisor queda en la auditoría en los retiros de caja (`caja.service.ts`, `datos: dto`).
-2. No hay forma de cerrar un pedido al que se le anularon todos los productos, así que la mesa queda ocupada.
-3. `POST /pedidos/:id/items` no tiene idempotencia: un reintento duplica productos.
-4. Los PIN de supervisor errados bloquean la cuenta del supervisor.
-5. Anular una venta devuelve el inventario con la receta actual y no con los movimientos originales.
+- La caja no se cuenta a ciegas: la pantalla muestra el efectivo esperado antes del cierre.
+- El límite de peticiones por IP no tiene `trust proxy`: detrás de Nginx o de un NAT, todo el restaurante comparte el mismo límite.
+- `num()` en el frontend borra el punto decimal (`Cobro.tsx`, `Caja.tsx`).
+- `/cocina/pendientes` no filtra los pedidos anulados.
+- El menú queda en caché en el navegador sin invalidarse; un monto gigante desborda `numeric(14,2)` y da un 500.
+- Las tablets compartidas no se bloquean por inactividad, y un usuario desactivado conserva su token hasta 15 minutos.
