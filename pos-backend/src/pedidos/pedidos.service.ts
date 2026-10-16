@@ -84,6 +84,18 @@ export class PedidosService {
   async agregarItems(pedidoId: string, dto: AgregarItemsDto, u: UsuarioToken) {
     await this.db.transaction(async (c) => {
       const p = await this.bloquear(c, pedidoId, u);
+      // Con el pedido bloqueado, un reintento simultáneo espera aquí y luego encuentra la clave
+      const lote = await this.db.one(
+        `INSERT INTO pedido_lote (idempotency_key, pedido_id, usuario_id) VALUES ($1, $2, $3)
+         ON CONFLICT (idempotency_key) DO NOTHING RETURNING pedido_id`,
+        [dto.idempotencyKey, pedidoId, u.id],
+        c,
+      );
+      if (!lote) {
+        const previo = await this.db.one(`SELECT pedido_id FROM pedido_lote WHERE idempotency_key = $1`, [dto.idempotencyKey], c);
+        if (previo?.pedido_id !== pedidoId) throw new ConflictException('La clave de idempotencia ya se usó en otro pedido');
+        return; // esta tanda ya se agregó
+      }
       this.exigirEditable(p);
       await this.insertarItems(c, pedidoId, dto.items, u);
       await this.db.query(`UPDATE pedido SET actualizado_en = now() WHERE id = $1`, [pedidoId], c);

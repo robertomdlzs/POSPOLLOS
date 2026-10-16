@@ -77,7 +77,7 @@ Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, 
 | GET | `/menu` · `/mesas` | todos | Menú con modificadores · mesas con su pedido abierto |
 | POST | `/pedidos` | mesero, cajero, supervisor | Crear pedido (con `idempotencyKey`) |
 | GET | `/pedidos` · `/pedidos/:id` | ídem | Pedidos abiertos · detalle con totales |
-| POST | `/pedidos/:id/items` | ídem | Agregar productos |
+| POST | `/pedidos/:id/items` | ídem | Agregar productos (con `idempotencyKey` por tanda) |
 | POST | `/pedidos/:id/enviar-cocina` | ídem | Envía lo nuevo y avisa por WebSocket |
 | POST | `/pedidos/:id/items/:itemId/anular` | ídem | Si ya está en cocina, pide PIN de supervisor |
 | POST | `/pedidos/:id/cerrar-vacio` | ídem | Cierra un pedido con todo anulado y libera la mesa |
@@ -110,7 +110,7 @@ Cada conexión entra a la sala de su sede, así que una sede nunca ve comandas d
 - **Fuerza bruta:** 5 PIN errados bloquean al usuario 5 minutos (423), y los logins tienen límite de 10 por minuto por IP (429).
 - **Acciones sensibles con PIN de supervisor:** descuentos, anular ítems ya enviados a cocina, anular ventas y retiros de caja. Todo queda en `auditoria`, que la base de datos no deja editar ni borrar.
 - **El servidor calcula los totales.** El cliente solo dice qué productos y cuánto paga con cada método; si no cuadra, no cobra.
-- **Idempotencia** en pedidos y cobros: un reintento por mala señal no duplica nada.
+- **Idempotencia** al crear pedidos, al agregarles productos y al cobrar: un reintento por mala señal no duplica nada.
 - **Bloqueos de fila** (`FOR UPDATE`) para que dos personas no cobren el mismo pedido ni abran la misma mesa a la vez.
 - **Validación estricta:** campos que no estén en el DTO se rechazan con 400.
 - Helmet, CORS restringido y errores de PostgreSQL traducidos a respuestas claras en vez de 500.

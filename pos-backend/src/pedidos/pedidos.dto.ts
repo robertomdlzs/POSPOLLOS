@@ -77,6 +77,10 @@ export class CrearPedidoDto {
 }
 
 export class AgregarItemsDto {
+  /** Una por tanda de productos; se conserva en los reintentos para no duplicar */
+  @IsUUID()
+  idempotencyKey: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(100)

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, mensajeError } from '../api';
 import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
@@ -52,6 +52,12 @@ export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
   const [verComanda, setVerComanda] = useState(false);
   // Misma clave en todos los reintentos: si el primer envío llegó, el servidor no duplica el pedido
   const claveCreacion = useRef(uuid());
+  // Igual para cada tanda que se agrega a un pedido abierto. Si falla la red, las líneas
+  // no cambian y el reintento lleva la misma clave; al editar el borrador, la tanda es otra.
+  const claveLote = useRef(uuid());
+  useEffect(() => {
+    claveLote.current = uuid();
+  }, [lineas]);
 
   const categorias = useMemo(() => {
     const vistas = new Map<string, string>();
@@ -119,7 +125,7 @@ export function Pedido({ contexto, rol, onVolver, onIrCaja }: Props) {
         id = creado.id;
         setPedidoId(id);
       } else if (items.length) {
-        await api('POST', `/pedidos/${id}/items`, { items });
+        await api('POST', `/pedidos/${id}/items`, { idempotencyKey: claveLote.current, items });
       }
       setLineas([]);
       await api('POST', `/pedidos/${id}/enviar-cocina`);
