@@ -47,11 +47,9 @@ Admin `admin@demo.co` / `CambiaEsto123!` (PIN 0000) · Supervisora 9999 · Cajer
 
 ## Pendiente conocido
 
-Ver la sección 10 de HISTORIA.md. Los 5 fallos principales de la revisión del 15-oct-2026 ya están corregidos (PIN en auditoría, mesa bloqueada, idempotencia de ítems, bloqueo del supervisor, devolución de inventario). Siguen abiertos, de menor gravedad:
+El trabajo por hacer está en [PLAN.md](PLAN.md). La fase 0 está completa salvo la 0.2.3 (CI en GitHub Actions), que falta ver correr en verde. La facturación DIAN (fase 3) quedó fuera del alcance de este software. Detalles abiertos que no son tareas del plan:
 
-- La caja no se cuenta a ciegas: la pantalla muestra el efectivo esperado antes del cierre.
-- El límite de peticiones por IP no tiene `trust proxy`: detrás de Nginx o de un NAT, todo el restaurante comparte el mismo límite.
-- `num()` en el frontend borra el punto decimal (`Cobro.tsx`, `Caja.tsx`).
-- `/cocina/pendientes` no filtra los pedidos anulados.
-- El menú queda en caché en el navegador sin invalidarse; un monto gigante desborda `numeric(14,2)` y da un 500.
-- Las tablets compartidas no se bloquean por inactividad, y un usuario desactivado conserva su token hasta 15 minutos.
+- Los mensajes de validación del backend salen en inglés ("precio must not be less than 0"): son los de class-validator por defecto. Los DTO nuevos del panel (fase 1) deben llevar `message` en español.
+- Sin notas crédito, una venta de un turno ya cerrado no se puede anular desde el sistema.
+- Los botones de las mesas no tienen nombre accesible para lectores de pantalla.
+- El estado de inactividad se prueba rápido con `VITE_MINUTOS_BLOQUEO` en `pos-frontend/.env.local`; el muestrario de componentes está en `/admin/muestra` (solo admin).
