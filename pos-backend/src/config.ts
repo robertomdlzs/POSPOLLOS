@@ -6,6 +6,17 @@ function requerida(nombre: string): string {
   return valor;
 }
 
+/**
+ * Cuántos proxies hay delante (Nginx, Caddy, balanceador). Sin esto, detrás de
+ * un proxy todas las peticiones parecen venir de la misma IP y comparten el
+ * límite. Acepta "true", un número de saltos o una lista de IP/subredes.
+ */
+function leerTrustProxy(valor: string | undefined): boolean | number | string {
+  if (!valor || valor === 'false') return false;
+  if (valor === 'true') return true;
+  return /^\d+$/.test(valor) ? Number(valor) : valor;
+}
+
 const jwtSecret = requerida('JWT_SECRET');
 if (jwtSecret.length < 32) {
   throw new Error('JWT_SECRET debe tener al menos 32 caracteres');
@@ -19,6 +30,7 @@ export const config = {
   accessTtlSegundos: Number(process.env.ACCESS_TTL_SECONDS ?? 900),
   /** Vida del refresh token, en días */
   refreshTtlDias: Number(process.env.REFRESH_TTL_DAYS ?? 7),
+  trustProxy: leerTrustProxy(process.env.TRUST_PROXY),
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
     .split(',')
     .map((o) => o.trim())

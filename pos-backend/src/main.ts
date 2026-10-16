@@ -1,12 +1,14 @@
 import { config } from './config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { PgErrorFilter } from './common/pg-error.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  if (config.trustProxy !== false) app.set('trust proxy', config.trustProxy);
 
   app.use(helmet());
   app.enableCors({ origin: config.corsOrigins, credentials: true });

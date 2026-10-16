@@ -1,12 +1,14 @@
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Publico, UsuarioActual } from '../common/decoradores';
+import { INGRESOS_POR_IP, RutaIngreso } from '../common/limites';
 import type { UsuarioToken } from '../common/tipos';
 import { LoginPasswordDto, LoginPinDto, RefreshDto } from './auth.dto';
 import { AuthService } from './auth.service';
 
-// Límite estricto contra fuerza bruta: 10 intentos por minuto por IP
-const LIMITE_LOGIN = { default: { limit: 10, ttl: 60_000 } };
+// Contra fuerza bruta: tope por IP para todos los usuarios juntos, más el límite
+// por usuario que aplica @RutaIngreso (ver common/limites.ts)
+const LIMITE_LOGIN = { default: { limit: INGRESOS_POR_IP, ttl: 60_000 } };
 
 @Controller('auth')
 export class AuthController {
@@ -20,6 +22,7 @@ export class AuthController {
 
   @Publico()
   @Throttle(LIMITE_LOGIN)
+  @RutaIngreso()
   @Post('pin')
   @HttpCode(200)
   loginPin(@Body() dto: LoginPinDto, @Headers('user-agent') ua?: string) {
@@ -28,6 +31,7 @@ export class AuthController {
 
   @Publico()
   @Throttle(LIMITE_LOGIN)
+  @RutaIngreso()
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginPasswordDto, @Headers('user-agent') ua?: string) {

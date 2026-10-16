@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { CajaModule } from './caja/caja.module';
 import { CocinaModule } from './cocina/cocina.module';
 import { JwtAuthGuard, RolesGuard } from './common/guards';
+import { LIMITES } from './common/limites';
 import { config } from './config';
 import { DatabaseModule } from './database/database.module';
 import { MenuModule } from './menu/menu.module';
@@ -15,8 +16,8 @@ import { VentasModule } from './ventas/ventas.module';
 
 @Module({
   imports: [
-    // Límite general por IP; las rutas de login tienen uno más estricto
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }]),
+    // Límite general por IP, y uno por usuario en las rutas de ingreso
+    ThrottlerModule.forRoot(LIMITES),
     JwtModule.register({
       global: true,
       secret: config.jwtSecret,
