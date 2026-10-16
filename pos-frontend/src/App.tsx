@@ -1,8 +1,10 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams } from 'react-router';
 import { alCambiarSesion, cerrarSesion, obtenerSesion } from './api';
 import { ProveedorAvisos, useAvisar } from './componentes/Avisos';
 import { Bloqueo, useInactividad } from './componentes/Bloqueo';
+import { clienteDatos, useTiempoReal } from './datos';
 import { Caja } from './pantallas/Caja';
 import { Cocina } from './pantallas/Cocina';
 import { Ingreso } from './pantallas/Ingreso';
@@ -33,9 +35,11 @@ interface EstadoPedido {
 export function App() {
   return (
     <BrowserRouter>
-      <ProveedorAvisos>
-        <Raiz />
-      </ProveedorAvisos>
+      <QueryClientProvider client={clienteDatos}>
+        <ProveedorAvisos>
+          <Raiz />
+        </ProveedorAvisos>
+      </QueryClientProvider>
     </BrowserRouter>
   );
 }
@@ -45,11 +49,12 @@ function Raiz() {
   const navegar = useNavigate();
   useEffect(() => alCambiarSesion(setSesion), []);
 
-  // Al salir, el canal en tiempo real se cierra y quien entre después empieza
-  // en su sección de inicio, no en la pantalla que dejó el anterior
+  // Al salir, el canal en tiempo real se cierra, la caché se vacía (lo que vio
+  // un usuario no lo hereda el siguiente) y quien entre empieza en su inicio
   useEffect(() => {
     if (!sesion) {
       cerrarCanal();
+      clienteDatos.clear();
       navegar('/', { replace: true });
     }
   }, [sesion, navegar]);
@@ -66,6 +71,7 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
   const inicio = `/${secciones[0]}`;
   // La pantalla de cocina se mira más de lo que se toca: no se bloquea
   const [bloqueada, desbloquear] = useInactividad(rol !== 'cocina');
+  useTiempoReal();
 
   // Meseros y caja se enteran cuando un plato sale de cocina
   useEffect(() => {

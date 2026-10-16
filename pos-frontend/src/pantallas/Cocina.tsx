@@ -3,7 +3,8 @@ import { api, mensajeError } from '../api';
 import { useAvisar } from '../componentes/Avisos';
 import { canalCocina } from '../socket';
 import type { EstadoItem, ItemComanda } from '../tipos';
-import { NOMBRE_SERVICIO, cant, minutosDesde, pitar, useDatos } from '../util';
+import { CLAVES, invalidar, useDatos } from '../datos';
+import { NOMBRE_SERVICIO, cant, minutosDesde, pitar } from '../util';
 
 const SIGUIENTE: Partial<Record<EstadoItem, { estado: EstadoItem; texto: string }>> = {
   pendiente: { estado: 'preparando', texto: 'Empezar' },
@@ -22,37 +23,31 @@ interface Ticket {
 
 export function Cocina() {
   const avisar = useAvisar();
-  const pendientes = useDatos(() => api<ItemComanda[]>('GET', '/cocina/pendientes'), []);
+  const pendientes = useDatos(CLAVES.cocina, () => api<ItemComanda[]>('GET', '/cocina/pendientes'));
   const [estacion, setEstacion] = useState<string>('todas');
   const [recientes, setRecientes] = useState<Set<string>>(new Set());
   const [, setTic] = useState(0);
-  const { recargar } = pendientes;
 
+  // La lista se actualiza sola con useTiempoReal; aquí solo el pitido y los avisos
   useEffect(() => {
     const canal = canalCocina();
     const nueva = (c: { pedidoId: string }) => {
       pitar();
       setRecientes((s) => new Set(s).add(c.pedidoId));
       setTimeout(() => setRecientes((s) => { const n = new Set(s); n.delete(c.pedidoId); return n; }), 8000);
-      recargar();
     };
     const anulado = (a: { producto: string }) => {
       avisar(`Anulado: ${a.producto}. No lo prepares.`, 'error');
-      recargar();
     };
     canal.on('comanda.nueva', nueva);
-    canal.on('item.estado', recargar);
     canal.on('item.anulado', anulado);
-    canal.on('connect', recargar); // al reconectar, por si se perdió algo
     const reloj = setInterval(() => setTic((t) => t + 1), 30_000);
     return () => {
       canal.off('comanda.nueva', nueva);
-      canal.off('item.estado', recargar);
       canal.off('item.anulado', anulado);
-      canal.off('connect', recargar);
       clearInterval(reloj);
     };
-  }, [recargar, avisar]);
+  }, [avisar]);
 
   async function avanzar(items: ItemComanda[], estado: EstadoItem) {
     try {
@@ -60,7 +55,7 @@ export function Cocina() {
     } catch (e) {
       avisar(mensajeError(e), 'error');
     }
-    recargar();
+    invalidar(CLAVES.cocina);
   }
 
   const todos = pendientes.datos ?? [];

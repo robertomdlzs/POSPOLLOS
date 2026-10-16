@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../api';
 import { Modal } from '../componentes/Modal';
-import { canalCocina } from '../socket';
 import type { Mesa, PedidoResumen, TipoServicio } from '../tipos';
-import { NOMBRE_SERVICIO, minutosDesde, useDatos } from '../util';
+import { CLAVES, useDatos } from '../datos';
+import { NOMBRE_SERVICIO, minutosDesde } from '../util';
 
 export interface AbrirPedido {
   pedidoId?: string;
@@ -21,28 +21,10 @@ const ESTADO_PEDIDO: Record<string, string> = {
 };
 
 export function Mesas({ onAbrir }: { onAbrir: (a: AbrirPedido) => void }) {
-  const mesas = useDatos(() => api<Mesa[]>('GET', '/mesas'), []);
-  const pedidos = useDatos(() => api<PedidoResumen[]>('GET', '/pedidos'), []);
+  // Lo que pasa en cocina las actualiza al momento (useTiempoReal); cada 20 s, por si acaso
+  const mesas = useDatos(CLAVES.mesas, () => api<Mesa[]>('GET', '/mesas'), { cada: 20_000 });
+  const pedidos = useDatos(CLAVES.pedidos, () => api<PedidoResumen[]>('GET', '/pedidos'), { cada: 20_000 });
   const [nuevoSinMesa, setNuevoSinMesa] = useState(false);
-  const { recargar: rMesas } = mesas;
-  const { recargar: rPedidos } = pedidos;
-
-  // Se actualiza con lo que pasa en cocina y, por si acaso, cada 20 segundos
-  useEffect(() => {
-    const refrescar = () => {
-      rMesas();
-      rPedidos();
-    };
-    const canal = canalCocina();
-    canal.on('comanda.nueva', refrescar);
-    canal.on('item.estado', refrescar);
-    const t = setInterval(refrescar, 20_000);
-    return () => {
-      canal.off('comanda.nueva', refrescar);
-      canal.off('item.estado', refrescar);
-      clearInterval(t);
-    };
-  }, [rMesas, rPedidos]);
 
   const porId = new Map((pedidos.datos ?? []).map((p) => [p.id, p]));
   const zonas = new Map<string, Mesa[]>();

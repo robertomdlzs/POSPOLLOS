@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { ApiError, api, fijarSesion, mensajeError } from '../api';
 import { PinPad } from '../componentes/PinPad';
 import type { Sesion, UsuarioLista } from '../tipos';
-import { NOMBRE_ROL, useDatos } from '../util';
+import { CLAVES, useDatos } from '../datos';
+import { NOMBRE_ROL } from '../util';
 
 function Reloj() {
   const [ahora, setAhora] = useState(new Date());
@@ -19,7 +20,7 @@ function Reloj() {
 }
 
 export function Ingreso() {
-  const { datos: usuarios, error: errorCarga, recargar } = useDatos(() => api<UsuarioLista[]>('GET', '/auth/usuarios'), []);
+  const { datos: usuarios, error: errorCarga, recargar } = useDatos(CLAVES.usuarios, () => api<UsuarioLista[]>('GET', '/auth/usuarios'));
   const [elegido, setElegido] = useState<UsuarioLista | null>(null);
   const [pin, setPin] = useState('');
   const [ocupado, setOcupado] = useState(false);

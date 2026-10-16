@@ -4,7 +4,8 @@ import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
 import { PedirSupervisor } from '../componentes/Supervisor';
 import type { Autorizacion, ItemPedido, Opcion, Pedido as TPedido, Producto, Rol } from '../tipos';
-import { NOMBRE_SERVICIO, cant, esSupervisor, pesos, puedeCobrar, useDatos, uuid } from '../util';
+import { CLAVES, invalidar, useDatos } from '../datos';
+import { NOMBRE_SERVICIO, cant, esSupervisor, pesos, puedeCobrar, uuid } from '../util';
 import { Cobro } from './Cobro';
 import type { AbrirPedido } from './Mesas';
 
@@ -25,8 +26,6 @@ const ESTADO_ITEM: Record<ItemPedido['estado'], string> = {
   anulado: 'Anulado',
 };
 
-let menuEnMemoria: Producto[] | null = null;
-
 const precioLinea = (l: Linea) => (Number(l.producto.precio) + l.opciones.reduce((s, o) => s + Number(o.precioExtra), 0)) * l.cantidad;
 
 interface Props {
@@ -40,9 +39,12 @@ interface Props {
 
 export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
   const avisar = useAvisar();
-  const menu = useDatos(async () => (menuEnMemoria ??= await api<Producto[]>('GET', '/menu')), []);
+  // El menú cambia poco: se da por fresco 5 minutos y se comparte entre pedidos
+  const menu = useDatos(CLAVES.menu, () => api<Producto[]>('GET', '/menu'), { frescura: 5 * 60_000 });
   const [pedidoId, setPedidoId] = useState(contexto.pedidoId);
-  const pedido = useDatos(() => (pedidoId ? api<TPedido>('GET', `/pedidos/${pedidoId}`) : Promise.resolve(null)), [pedidoId]);
+  const pedido = useDatos(CLAVES.pedido(pedidoId ?? 'nuevo'), () => api<TPedido>('GET', `/pedidos/${pedidoId}`), {
+    habilitado: !!pedidoId,
+  });
 
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -150,6 +152,7 @@ export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
     setCerrando(true);
     try {
       await api('POST', `/pedidos/${pedidoId}/cerrar-vacio`);
+      invalidar(CLAVES.mesas, CLAVES.pedidos);
       avisar(`${titulo}: pedido cerrado`, 'info');
       onVolver();
     } catch (e) {
@@ -335,6 +338,8 @@ export function Pedido({ contexto, rol, onCreado, onVolver, onIrCaja }: Props) {
           onCerrar={() => setCobrando(false)}
           onIrCaja={onIrCaja}
           onCobrado={() => {
+            // Cobrar no pasa por cocina, así que no llega aviso en tiempo real
+            invalidar(CLAVES.mesas, CLAVES.pedidos, CLAVES.turno);
             setCobrando(false);
             onVolver();
           }}

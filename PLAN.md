@@ -73,7 +73,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 ### 0.4 Base técnica del frontend
 
 - [x] **0.4.1 Router** (M). React Router, con rutas `/ingreso`, `/mesas`, `/pedido/:id`, `/caja`, `/cocina` y `/admin/*`. Protección de rutas por permiso. El botón "atrás" del navegador funciona.
-- [ ] **0.4.2 Caché de datos** (M). TanStack Query en lugar de `useDatos`, con invalidación por eventos del WebSocket. Resuelve también el menú que se quedaba en caché para siempre.
+- [x] **0.4.2 Caché de datos** (M). TanStack Query en lugar de `useDatos`, con invalidación por eventos del WebSocket. Resuelve también el menú que se quedaba en caché para siempre.
 - [ ] **0.4.3 Componentes para el panel de administración** (L). Siguen el estilo neumórfico actual, sin librería externa de componentes: tabla con orden, filtro y paginación; formulario con validación y errores por campo; selector; interruptor; carga de imagen; confirmación de borrado; y estado vacío.
 
 ---

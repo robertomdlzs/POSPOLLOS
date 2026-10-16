@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { mensajeError } from './api';
 import type { Rol, TipoServicio } from './tipos';
 
 const formato = (decimales: number) =>
@@ -68,34 +66,6 @@ export const NOMBRE_SERVICIO: Record<TipoServicio, string> = {
 
 export const puedeCobrar = (rol: Rol) => rol === 'cajero' || rol === 'supervisor' || rol === 'admin';
 export const esSupervisor = (rol: Rol) => rol === 'supervisor' || rol === 'admin';
-
-/** Carga datos con estado de carga/error y una función para recargar */
-export function useDatos<T>(cargar: () => Promise<T>, deps: unknown[]) {
-  const [datos, setDatos] = useState<T | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
-  const fn = useRef(cargar);
-  fn.current = cargar;
-
-  const recargar = useCallback(async () => {
-    setCargando(true);
-    try {
-      setDatos(await fn.current());
-      setError(null);
-    } catch (e) {
-      setError(mensajeError(e));
-    } finally {
-      setCargando(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-
-  useEffect(() => {
-    recargar();
-  }, [recargar]);
-
-  return { datos, error, cargando, recargar, setDatos };
-}
 
 /** Pitido corto para avisar una comanda nueva en cocina */
 export function pitar() {

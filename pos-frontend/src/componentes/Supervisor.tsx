@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, mensajeError } from '../api';
 import type { Autorizacion, UsuarioLista } from '../tipos';
-import { useDatos } from '../util';
+import { CLAVES, useDatos } from '../datos';
 import { PinPad } from './PinPad';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 
 /** Un supervisor escoge su nombre y escribe su PIN para aprobar una acción */
 export function PedirSupervisor({ accion, onAutorizar }: Props) {
-  const { datos } = useDatos(() => api<UsuarioLista[]>('GET', '/auth/usuarios'), []);
+  const { datos } = useDatos(CLAVES.usuarios, () => api<UsuarioLista[]>('GET', '/auth/usuarios'));
   const supervisores = (datos ?? []).filter((u) => u.rol === 'supervisor' || u.rol === 'admin');
   const [elegido, setElegido] = useState<string | null>(null);
   const [pin, setPin] = useState('');

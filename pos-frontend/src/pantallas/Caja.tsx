@@ -4,7 +4,8 @@ import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
 import { PedirSupervisor } from '../componentes/Supervisor';
 import type { Autorizacion, Rol, Turno } from '../tipos';
-import { esSupervisor, leerPesos, pesos, useDatos } from '../util';
+import { CLAVES, useDatos } from '../datos';
+import { esSupervisor, leerPesos, pesos } from '../util';
 
 const num = leerPesos;
 
@@ -25,14 +26,14 @@ interface Cierre {
 export function Caja({ rol }: { rol: Rol }) {
   const avisar = useAvisar();
   // 404 significa "no hay turno abierto", que no es un error sino el punto de partida
-  const turno = useDatos(async () => {
+  const turno = useDatos(CLAVES.turno, async () => {
     try {
       return await api<Turno>('GET', '/caja/turnos/actual');
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) return null;
       throw e;
     }
-  }, []);
+  });
   const [base, setBase] = useState('');
   const [movimiento, setMovimiento] = useState<'ingreso' | 'egreso' | null>(null);
   const [cerrando, setCerrando] = useState(false);
