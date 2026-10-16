@@ -51,10 +51,10 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 ### 0.1 Fallos abiertos de la revisión
 
 - [ ] **0.1.1 Cierre de caja a ciegas** (S). La pantalla de caja deja de mostrar el efectivo esperado mientras el turno está abierto; el supervisor lo ve, el cajero no. El backend solo devuelve `monto_esperado` en el resultado del cierre o a quien tenga el permiso. *Prueba:* con el cajero, `GET /caja/turnos/actual` no trae el efectivo esperado.
-- [ ] **0.1.2 `trust proxy`** (S). Configurarlo con la variable `TRUST_PROXY`, documentarlo y hacer que el límite de ingresos cuente por usuario además de por IP.
-- [ ] **0.1.3 Montos con decimales en el frontend** (S). Reemplazar `num()` por un lector de montos en pesos que respete la coma decimal colombiana, en `Cobro.tsx` y `Caja.tsx`.
-- [ ] **0.1.4 Cocina sin pedidos anulados** (S). `/cocina/pendientes` excluye los pedidos en estado `anulado`.
-- [ ] **0.1.5 Montos máximos** (S). Agregar `@Max` a todos los DTO de dinero y traducir el error `22003` de PostgreSQL a un 400.
+- [x] **0.1.2 `trust proxy`** (S). Configurarlo con la variable `TRUST_PROXY`, documentarlo y hacer que el límite de ingresos cuente por usuario además de por IP.
+- [x] **0.1.3 Montos con decimales en el frontend** (S). Reemplazar `num()` por un lector de montos en pesos que respete la coma decimal colombiana, en `Cobro.tsx` y `Caja.tsx`.
+- [x] **0.1.4 Cocina sin pedidos anulados** (S). `/cocina/pendientes` excluye los pedidos en estado `anulado`.
+- [x] **0.1.5 Montos máximos** (S). Agregar `@Max` a todos los DTO de dinero y traducir el error `22003` de PostgreSQL a un 400.
 - [ ] **0.1.6 Revocación inmediata** (M). Al desactivar un usuario o cerrar sus sesiones, su access token deja de servir de inmediato: una lista de usuarios revocados en memoria, con caducidad de 15 minutos, que consultan el guard y el WebSocket. El socket se desconecta al vencer el token.
 - [ ] **0.1.7 Bloqueo por inactividad** (M). Tras N minutos sin tocar la pantalla (configurable, 3 por defecto), la tablet vuelve a pedir el PIN sin perder el pedido en curso.
 

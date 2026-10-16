@@ -6,10 +6,27 @@ const cop = new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',
   minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
+  maximumFractionDigits: 2,
 });
 
 export const pesos = (v: string | number) => cop.format(Number(v));
+
+/**
+ * Lee un monto escrito a mano en formato colombiano y lo deja con dos decimales
+ * como máximo: "25.000" y "25000" son 25000; "25.000,50", "25000,5" y "25000.5"
+ * son 25000,50. Un punto seguido de grupos de tres cifras es separador de miles;
+ * cualquier otro punto, o una coma, es la parte decimal. Lo que no sea número da 0.
+ */
+export function leerPesos(texto: string): number {
+  let t = texto.replace(/[^\d.,]/g, '');
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.').replace(/,/g, '');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  const n = Number(t);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0;
+}
+
+/** Diferencia exacta entre dos montos, sin el ruido de los decimales en coma flotante */
+export const restarPesos = (a: number, b: number) => (Math.round(a * 100) - Math.round(b * 100)) / 100;
 
 export const cant = (v: string | number) => {
   const n = Number(v);

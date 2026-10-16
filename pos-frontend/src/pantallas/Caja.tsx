@@ -4,9 +4,9 @@ import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
 import { PedirSupervisor } from '../componentes/Supervisor';
 import type { Autorizacion, Rol, Turno } from '../tipos';
-import { esSupervisor, pesos, useDatos } from '../util';
+import { esSupervisor, leerPesos, pesos, useDatos } from '../util';
 
-const num = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0;
+const num = leerPesos;
 
 const NOMBRE_METODO: Record<string, string> = {
   efectivo: 'Efectivo',

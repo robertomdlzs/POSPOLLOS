@@ -4,7 +4,7 @@ import { useAvisar } from '../componentes/Avisos';
 import { Modal } from '../componentes/Modal';
 import { PedirSupervisor } from '../componentes/Supervisor';
 import type { Autorizacion, MetodoPago, Pedido, Rol, Venta } from '../tipos';
-import { esSupervisor, pesos, uuid } from '../util';
+import { esSupervisor, leerPesos, pesos, restarPesos, uuid } from '../util';
 
 const METODOS: { id: MetodoPago; nombre: string }[] = [
   { id: 'efectivo', nombre: 'Efectivo' },
@@ -22,10 +22,7 @@ interface Pago {
   referencia: string;
 }
 
-const num = (s: string) => {
-  const n = Number(s.replace(/[^\d]/g, ''));
-  return Number.isFinite(n) ? n : 0;
-};
+const num = leerPesos;
 const redondear100 = (n: number) => Math.round(n / 100) * 100;
 
 interface Props {
@@ -53,12 +50,12 @@ export function Cobro({ pedido, titulo, rol, onCerrar, onCobrado, onIrCaja }: Pr
 
   const desc = Math.min(num(descuento), bruto);
   const propina = propinaModo === '10' ? redondear100(bruto * 0.1) : propinaModo === 'otra' ? num(propinaOtra) : 0;
-  const total = bruto - desc + propina;
+  const total = restarPesos(bruto, desc - propina);
 
   // Si no han tocado los pagos, todo va en efectivo por el total
   const lista: Pago[] = pagos.length ? pagos : [{ clave: 'auto', metodo: 'efectivo', monto: String(total), recibido: '', referencia: '' }];
   const pagado = lista.reduce((s, p) => s + num(p.monto), 0);
-  const diferencia = total - pagado;
+  const diferencia = restarPesos(total, pagado);
   const cambio = lista
     .filter((p) => p.metodo === 'efectivo' && p.recibido)
     .reduce((s, p) => s + Math.max(0, num(p.recibido) - num(p.monto)), 0);
