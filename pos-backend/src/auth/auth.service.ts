@@ -10,6 +10,7 @@ import bcrypt from 'bcryptjs';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { AutorizacionDto } from '../common/dto';
+import { RevocacionService } from '../common/revocacion';
 import type { Rol, UsuarioToken } from '../common/tipos';
 import { config } from '../config';
 import { DatabaseService, Db } from '../database/database.service';
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly db: DatabaseService,
     private readonly jwt: JwtService,
     private readonly auditoria: AuditoriaService,
+    private readonly revocacion: RevocacionService,
   ) {}
 
   /** Lista para la pantalla de "toca tu nombre y escribe tu PIN" */
@@ -105,6 +107,8 @@ export class AuthService {
         `UPDATE sesion SET revocada_en = now() WHERE usuario_id = $1 AND revocada_en IS NULL`,
         [resultado.usuarioId],
       );
+      // Posible robo: también dejan de servir los access tokens que ya circulan
+      this.revocacion.revocar({ tipo: 'usuario', id: resultado.usuarioId });
       await this.auditoria.registrar({
         usuarioId: resultado.usuarioId,
         accion: 'refresh_reutilizado',
@@ -121,10 +125,12 @@ export class AuthService {
   async cerrarSesion(refreshToken: string) {
     const [id, secreto] = refreshToken.split('.');
     if (!id || !secreto || !UUID_RE.test(id)) return;
-    await this.db.query(
-      `UPDATE sesion SET revocada_en = now() WHERE id = $1 AND token_hash = $2 AND revocada_en IS NULL`,
+    const cerrada = await this.db.one(
+      `UPDATE sesion SET revocada_en = now() WHERE id = $1 AND token_hash = $2 AND revocada_en IS NULL RETURNING id`,
       [id, sha256(secreto)],
     );
+    // El access token de este dispositivo deja de servir ya, no en 15 minutos
+    if (cerrada) this.revocacion.revocar({ tipo: 'sesion', id: cerrada.id });
   }
 
   /**
@@ -247,6 +253,7 @@ export class AuthService {
     );
     const accessToken = this.jwt.sign({
       sub: u.id,
+      sid: sesion!.id,
       nombre: u.nombre,
       rol: u.rol,
       empresaId: u.empresa_id,

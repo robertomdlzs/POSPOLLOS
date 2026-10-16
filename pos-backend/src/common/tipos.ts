@@ -8,6 +8,8 @@ export interface UsuarioToken {
   rol: Rol;
   empresaId: string;
   sedeId: string;
+  /** Sesión (refresh token) de la que salió el token; sirve para revocarla al cerrar sesión */
+  sesionId?: string;
 }
 
 export const TIPOS_SERVICIO = ['mesa', 'mostrador', 'domicilio', 'para_llevar'] as const;

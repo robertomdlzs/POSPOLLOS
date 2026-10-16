@@ -8,6 +8,7 @@ import { CajaModule } from './caja/caja.module';
 import { CocinaModule } from './cocina/cocina.module';
 import { JwtAuthGuard, RolesGuard } from './common/guards';
 import { LIMITES } from './common/limites';
+import { RevocacionModule } from './common/revocacion';
 import { config } from './config';
 import { DatabaseModule } from './database/database.module';
 import { MenuModule } from './menu/menu.module';
@@ -24,6 +25,7 @@ import { VentasModule } from './ventas/ventas.module';
       signOptions: { expiresIn: config.accessTtlSegundos },
     }),
     DatabaseModule,
+    RevocacionModule,
     AuditoriaModule,
     AuthModule,
     MenuModule,

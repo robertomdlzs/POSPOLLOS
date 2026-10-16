@@ -8,10 +8,11 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { ES_PUBLICO, ROLES_PERMITIDOS } from './decoradores';
+import { RevocacionService } from './revocacion';
 import { Rol, UsuarioToken } from './tipos';
 
 export function tokenAUsuario(p: any): UsuarioToken {
-  return { id: p.sub, nombre: p.nombre, rol: p.rol, empresaId: p.empresaId, sedeId: p.sedeId };
+  return { id: p.sub, nombre: p.nombre, rol: p.rol, empresaId: p.empresaId, sedeId: p.sedeId, sesionId: p.sid };
 }
 
 @Injectable()
@@ -19,6 +20,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly jwt: JwtService,
+    private readonly revocacion: RevocacionService,
   ) {}
 
   canActivate(ctx: ExecutionContext): boolean {
@@ -29,12 +31,17 @@ export class JwtAuthGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest();
     const [tipo, token] = String(req.headers.authorization ?? '').split(' ');
     if (tipo !== 'Bearer' || !token) throw new UnauthorizedException('Token requerido');
+    let payload: any;
     try {
-      req.user = tokenAUsuario(this.jwt.verify(token));
-      return true;
+      payload = this.jwt.verify(token);
     } catch {
       throw new UnauthorizedException('Token inválido o vencido');
     }
+    if (this.revocacion.estaRevocado(payload.sub, payload.sid, payload.iat)) {
+      throw new UnauthorizedException('La sesión se cerró');
+    }
+    req.user = tokenAUsuario(payload);
+    return true;
   }
 }
 
