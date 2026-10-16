@@ -61,7 +61,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 
 - [x] **0.2.1 Pruebas unitarias del backend** (M). Vitest. Cubrir `dinero.ts` (redondeos, impuestos, cantidades fraccionadas), guards, revocación y límites de ingreso. La validación de modificadores consulta la base, así que va en las pruebas de integración (0.2.2).
 - [x] **0.2.2 Pruebas de integración con PostgreSQL** (L). `npm run test:integracion` rehace el esquema `pos_prueba` dentro de la base de `DATABASE_URL` (no hace falta permiso para crear bases), migra, siembra, arranca el servidor en el puerto 3199 y corre `tests/flujo.e2e.mjs`. Los datos reales no se tocan.
-- [ ] **0.2.3 CI en GitHub Actions** (M). En cada push: instalar, `tsc --noEmit`, pruebas del backend con PostgreSQL en un servicio de Actions, y `npm run build` del frontend. *Requiere* subir el repositorio a GitHub (privado).
+- [x] **0.2.3 CI en GitHub Actions** (M). En cada push: instalar, `tsc --noEmit`, pruebas del backend con PostgreSQL en un servicio de Actions, y `npm run build` del frontend. *Requiere* subir el repositorio a GitHub (privado).
 
 ### 0.3 Base técnica del backend
 

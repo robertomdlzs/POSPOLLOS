@@ -47,7 +47,7 @@ Admin `admin@demo.co` / `CambiaEsto123!` (PIN 0000) · Supervisora 9999 · Cajer
 
 ## Pendiente conocido
 
-El trabajo por hacer está en [PLAN.md](PLAN.md). La fase 0 está completa salvo la 0.2.3 (CI en GitHub Actions), que falta ver correr en verde. La facturación DIAN (fase 3) quedó fuera del alcance de este software. Detalles abiertos que no son tareas del plan:
+El trabajo por hacer está en [PLAN.md](PLAN.md). La fase 0 está completa; la CI corre en GitHub Actions en cada push. La facturación DIAN (fase 3) quedó fuera del alcance de este software. Detalles abiertos que no son tareas del plan:
 
 - Los mensajes de validación del backend salen en inglés ("precio must not be less than 0"): son los de class-validator por defecto. Los DTO nuevos del panel (fase 1) deben llevar `message` en español.
 - Sin notas crédito, una venta de un turno ya cerrado no se puede anular desde el sistema.
