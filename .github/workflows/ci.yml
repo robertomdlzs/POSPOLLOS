@@ -1,0 +1,71 @@
+# En cada push y pull request: compila, corre las pruebas del backend contra un
+# PostgreSQL real y construye el frontend. Si algo falla, el commit queda en rojo.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pos-backend
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pos
+          POSTGRES_DB: pos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://pos:pos@localhost:5432/pos
+      JWT_SECRET: secreto-de-ci-que-no-se-usa-fuera-de-las-pruebas-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: pos-backend/package-lock.json
+      - run: npm ci
+      - name: Tipos
+        run: npx tsc --noEmit
+      - name: Pruebas unitarias
+        run: npm test
+      - name: Prueba de integración
+        run: npm run test:integracion
+      - name: Dependencias con vulnerabilidades altas
+        run: npm audit --omit=dev --audit-level=high
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pos-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: pos-frontend/package-lock.json
+      - run: npm ci
+      - name: Tipos y build
+        run: npm run build
+      - name: Dependencias con vulnerabilidades altas
+        run: npm audit --omit=dev --audit-level=high
