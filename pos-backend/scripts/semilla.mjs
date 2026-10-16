@@ -32,10 +32,17 @@ try {
     ['María Mesera', 'mesero', null, null, hash('2222')],
     ['Pedro Cocina', 'cocina', null, null, hash('3333')],
   ];
+  // Roles de fábrica (migración 006) y a cada usuario el suyo en la sede
+  await q(`SELECT crear_roles_sistema($1)`, [empresa]);
   for (const [nombre, rol, email, ph, pin] of usuarios) {
-    await q(
-      `INSERT INTO usuario (empresa_id, nombre, rol, email, password_hash, pin_hash) VALUES ($1, $2, $3, $4, $5, $6)`,
+    const usuario = await id(
+      `INSERT INTO usuario (empresa_id, nombre, rol, email, password_hash, pin_hash) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
       [empresa, nombre, rol, email, ph, pin],
+    );
+    await q(
+      `INSERT INTO usuario_sede_rol (usuario_id, sede_id, rol_id)
+       SELECT $1, $2, id FROM rol WHERE empresa_id = $3 AND clave = $4`,
+      [usuario, sede, empresa, rol],
     );
   }
 

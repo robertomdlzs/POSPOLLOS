@@ -84,7 +84,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 
 Hoy los roles son un `ENUM` fijo. Se pasa a permisos por acción y a roles que define cada restaurante.
 
-- [ ] **1.1.1 Esquema de permisos** (M). Migración `006_permisos.sql`:
+- [x] **1.1.1 Esquema de permisos** (M). Migración `006_permisos.sql`:
   - tabla `rol` con `empresa_id`, nombre y si es de sistema;
   - tabla `rol_permiso` con el rol y el código de permiso;
   - tabla `usuario_sede_rol`, para que un usuario pueda tener un rol distinto en cada sede.
