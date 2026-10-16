@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { alCambiarSesion, cerrarSesion, obtenerSesion } from './api';
 import { ProveedorAvisos, useAvisar } from './componentes/Avisos';
+import { Bloqueo, useInactividad } from './componentes/Bloqueo';
 import { Caja } from './pantallas/Caja';
 import { Cocina } from './pantallas/Cocina';
 import { Ingreso } from './pantallas/Ingreso';
@@ -38,6 +39,8 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
   const { rol, nombre } = sesion.usuario;
   const secciones = SECCIONES[rol];
   const [vista, setVista] = useState<Vista>({ tipo: secciones[0] });
+  // La pantalla de cocina se mira más de lo que se toca: no se bloquea
+  const [bloqueada, desbloquear] = useInactividad(rol !== 'cocina');
 
   // Meseros y caja se enteran cuando un plato sale de cocina
   useEffect(() => {
@@ -90,6 +93,7 @@ function Trabajo({ sesion }: { sesion: Sesion }) {
         {vista.tipo === 'caja' && <Caja rol={rol} />}
         {vista.tipo === 'cocina' && <Cocina />}
       </main>
+      {bloqueada && <Bloqueo nombre={nombre} onDesbloquear={desbloquear} />}
     </div>
   );
 }

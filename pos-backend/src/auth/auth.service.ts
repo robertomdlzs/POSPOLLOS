@@ -122,6 +122,14 @@ export class AuthService {
     return resultado.sesion;
   }
 
+  /**
+   * Comprueba el PIN del usuario de la sesión, sin crear otra. Los fallos
+   * cuentan para el bloqueo como en el ingreso normal.
+   */
+  async desbloquear(u: UsuarioToken, pin: string) {
+    await this.verificarCredencial(u.id, 'pin_hash', pin);
+  }
+
   async cerrarSesion(refreshToken: string) {
     const [id, secreto] = refreshToken.split('.');
     if (!id || !secreto || !UUID_RE.test(id)) return;

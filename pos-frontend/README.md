@@ -58,6 +58,7 @@ Sirve `dist/` en el mismo dominio que el backend (por ejemplo, con Nginx: `/` a 
 ## Decisiones
 
 - **Sesión:** el access token vive 15 minutos y se renueva solo; si varias peticiones lo necesitan a la vez, comparten una sola renovación. El refresh token se guarda en el dispositivo para no pedir el PIN en cada recarga. "Cambiar de usuario" lo revoca en el servidor.
+- **Bloqueo por inactividad:** tras 3 minutos sin tocar la pantalla (se cambia con `VITE_MINUTOS_BLOQUEO`), la tablet pide otra vez el PIN de quien estaba trabajando, sin perder el pedido o el cobro en curso. "Soy otra persona" cierra la sesión. La pantalla de cocina no se bloquea.
 - **Sin cobros dobles:** cada pedido nuevo y cada cobro llevan una clave única que se conserva en los reintentos. Si la red falla justo al cobrar y la cajera vuelve a tocar el botón, el servidor devuelve la misma venta.
 - **Funciona por IP de red local:** `crypto.randomUUID` no existe fuera de https o localhost, así que las claves se generan con `getRandomValues` cuando hace falta.
 - **Tipografías empaquetadas** (Atkinson Hyperlegible e IBM Plex Mono): la interfaz se ve igual aunque el restaurante se quede sin internet.

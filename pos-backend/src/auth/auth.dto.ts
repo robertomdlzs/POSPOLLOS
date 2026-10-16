@@ -27,6 +27,14 @@ export class LoginPasswordDto {
   sedeId?: string;
 }
 
+/** PIN del propio usuario para volver a la pantalla bloqueada por inactividad */
+export class DesbloquearDto {
+  @IsString()
+  @Length(4, 8)
+  @Matches(/^\d+$/, { message: 'El PIN solo lleva números' })
+  pin: string;
+}
+
 export class RefreshDto {
   @IsString()
   @MaxLength(200)

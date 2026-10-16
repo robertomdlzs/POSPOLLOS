@@ -218,6 +218,24 @@ input::placeholder { color: var(--tinta-3); }
   @keyframes subir { from { transform: translateY(12px); opacity: 0; } }
 }
 
+/* ---------------------------------------------------------------- bloqueo */
+
+.bloqueo {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 2rem 1rem;
+  background: var(--tinta);
+  color: #fff;
+}
+.bloqueo-titulo { color: #a9b6c3; font-size: 0.95rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.bloqueo .error { color: #ff9b91; min-height: 1.4em; }
+
 /* ----------------------------------------------------------------- avisos */
 
 .avisos {

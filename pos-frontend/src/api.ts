@@ -67,6 +67,9 @@ async function pedir(metodo: string, ruta: string, body: unknown, token?: string
   }
 }
 
+/** Rutas de ingreso: un 401 ahí es credencial errada, no un token vencido que haya que renovar */
+const RUTAS_INGRESO = ['/auth/pin', '/auth/login', '/auth/refresh', '/auth/logout'];
+
 let refrescando: Promise<boolean> | null = null;
 
 /** Renueva los tokens. Varias peticiones simultáneas comparten un solo refresh. */
@@ -95,7 +98,7 @@ export function refrescar(): Promise<boolean> {
 
 export async function api<T = unknown>(metodo: string, ruta: string, body?: unknown): Promise<T> {
   let r = await pedir(metodo, ruta, body, sesion?.accessToken);
-  if (r.status === 401 && sesion && !ruta.startsWith('/auth/')) {
+  if (r.status === 401 && sesion && !RUTAS_INGRESO.includes(ruta)) {
     if (await refrescar()) r = await pedir(metodo, ruta, body, sesion?.accessToken);
   }
   const texto = await r.text();

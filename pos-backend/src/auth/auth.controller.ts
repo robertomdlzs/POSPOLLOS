@@ -3,7 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Publico, UsuarioActual } from '../common/decoradores';
 import { INGRESOS_POR_IP, RutaIngreso } from '../common/limites';
 import type { UsuarioToken } from '../common/tipos';
-import { LoginPasswordDto, LoginPinDto, RefreshDto } from './auth.dto';
+import { DesbloquearDto, LoginPasswordDto, LoginPinDto, RefreshDto } from './auth.dto';
 import { AuthService } from './auth.service';
 
 // Contra fuerza bruta: tope por IP para todos los usuarios juntos, más el límite
@@ -51,6 +51,14 @@ export class AuthController {
   @HttpCode(204)
   async logout(@Body() dto: RefreshDto) {
     await this.auth.cerrarSesion(dto.refreshToken);
+  }
+
+  /** La tablet se bloqueó por inactividad: el mismo usuario vuelve con su PIN */
+  @Throttle(LIMITE_LOGIN)
+  @Post('desbloquear')
+  @HttpCode(204)
+  async desbloquear(@Body() dto: DesbloquearDto, @UsuarioActual() u: UsuarioToken) {
+    await this.auth.desbloquear(u, dto.pin);
   }
 
   @Get('yo')
