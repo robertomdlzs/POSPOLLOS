@@ -1,13 +1,15 @@
 import { config } from './config';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { PgErrorFilter } from './common/pg-error.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
   if (config.trustProxy !== false) app.set('trust proxy', config.trustProxy);
 
   app.use(helmet());
@@ -24,6 +26,6 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   await app.listen(config.port);
-  Logger.log(`POS backend escuchando en http://localhost:${config.port}/api`, 'Bootstrap');
+  app.get(Logger).log(`POS backend escuchando en http://localhost:${config.port}/api`, 'Bootstrap');
 }
 bootstrap();
