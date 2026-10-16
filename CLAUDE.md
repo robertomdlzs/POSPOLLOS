@@ -20,6 +20,7 @@ Punto de venta para restaurantes en Colombia: pedidos, cocina en tiempo real (KD
 npm run db:migrar        # aplica db/migraciones/*.sql pendientes
 npm run db:semilla       # restaurante de ejemplo (no hace nada si ya hay datos)
 npm run start:dev
+npm test                 # pruebas unitarias (Vitest, sin base de datos)
 npm run test:flujo       # prueba de punta a punta; exige el servidor corriendo sobre una base recién sembrada
 npx tsc --noEmit
 

@@ -59,7 +59,7 @@ Sin esto, cada fase siguiente se construye más lento y con más riesgo.
 
 ### 0.2 Pruebas y CI
 
-- [ ] **0.2.1 Pruebas unitarias del backend** (M). Vitest. Cubrir `dinero.ts` (redondeos, impuestos, cantidades fraccionadas), guards y la validación de modificadores.
+- [x] **0.2.1 Pruebas unitarias del backend** (M). Vitest. Cubrir `dinero.ts` (redondeos, impuestos, cantidades fraccionadas), guards, revocación y límites de ingreso. La validación de modificadores consulta la base, así que va en las pruebas de integración (0.2.2).
 - [ ] **0.2.2 Pruebas de integración con PostgreSQL** (L). Una base `pos_test` que se crea, se migra y se siembra antes de cada corrida. Pasar `tests/flujo.e2e.mjs` a este formato para que no exija el servidor levantado a mano.
 - [ ] **0.2.3 CI en GitHub Actions** (M). En cada push: instalar, `tsc --noEmit`, pruebas del backend con PostgreSQL en un servicio de Actions, y `npm run build` del frontend. *Requiere* subir el repositorio a GitHub (privado).
 

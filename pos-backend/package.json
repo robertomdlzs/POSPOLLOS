@@ -12,7 +12,9 @@
     "start:dev": "nest start --watch",
     "db:migrar": "node scripts/migrar.mjs",
     "db:semilla": "node scripts/semilla.mjs",
-    "test:flujo": "node tests/flujo.e2e.mjs"
+    "test:flujo": "node tests/flujo.e2e.mjs",
+    "test": "vitest run",
+    "test:vigilar": "vitest"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.3",
