@@ -127,6 +127,7 @@ export function Cocina() {
                         <span className="ticket-linea">
                           <span className="ticket-cant">{cant(i.cantidad)}×</span> {i.producto}
                         </span>
+                        {i.combo && <span className="ticket-combo">{i.combo}</span>}
                         {i.modificadores.map((m) => (
                           <span key={m} className="ticket-mod">{m}</span>
                         ))}

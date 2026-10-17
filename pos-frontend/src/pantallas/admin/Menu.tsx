@@ -7,7 +7,7 @@ import { Confirmar } from '../../componentes/Confirmar';
 import { EstadoVacio } from '../../componentes/EstadoVacio';
 import { Campo, Interruptor, Selector } from '../../componentes/Formulario';
 import { CLAVES, invalidar, useDatos } from '../../datos';
-import type { CategoriaAdmin, Estacion, GrupoAdmin, ProductoAdmin, Sede, TipoImpuesto } from '../../tipos';
+import type { CategoriaAdmin, Estacion, GrupoAdmin, ProductoAdmin, SeccionComboAdmin, Sede, TipoImpuesto } from '../../tipos';
 import { leerPesos, pesos } from '../../util';
 
 const cargarCategorias = () => api<CategoriaAdmin[]>('GET', '/categorias');
@@ -151,6 +151,7 @@ function Productos() {
                 <span>
                   {p.nombre}
                   <span className="nota">
+                    {p.tipo === 'combo' && 'Combo · '}
                     {pesos(p.precioSede ?? p.precio)}
                     {p.precioSede && ' (precio de esta sede)'}
                     {!p.activo && ' · Inactivo'}
@@ -226,6 +227,7 @@ function FichaProducto() {
     <EditorProducto
       key={id}
       producto={producto ?? null}
+      productos={productos.datos!}
       categorias={categorias.datos!}
       grupos={grupos.datos!}
       estaciones={estaciones.datos!}
@@ -236,12 +238,14 @@ function FichaProducto() {
 
 function EditorProducto({
   producto,
+  productos,
   categorias,
   grupos,
   estaciones,
   sedes,
 }: {
   producto: ProductoAdmin | null;
+  productos: ProductoAdmin[];
   categorias: CategoriaAdmin[];
   grupos: GrupoAdmin[];
   estaciones: Estacion[];
@@ -250,6 +254,8 @@ function EditorProducto({
   const navegar = useNavigate();
   const avisar = useAvisar();
   const [params] = useSearchParams();
+  const [tipo, setTipo] = useState<'simple' | 'combo'>(producto?.tipo ?? 'simple');
+  const esCombo = tipo === 'combo';
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
   const [descripcion, setDescripcion] = useState(producto?.descripcion ?? '');
   const [categoriaId, setCategoriaId] = useState(producto?.categoriaId ?? params.get('categoria') ?? categorias[0]?.id ?? '');
@@ -277,9 +283,9 @@ function EditorProducto({
       precio: leerPesos(precio),
       tipoImpuesto: tipoImpuesto as TipoImpuesto,
       tasaImpuesto: Number(tasa),
-      estacionId: estacionId || null,
-      grupoIds,
-      ...(producto ? { activo } : {}),
+      estacionId: esCombo ? null : estacionId || null,
+      grupoIds: esCombo ? [] : grupoIds,
+      ...(producto ? { activo } : { tipo }),
     };
     try {
       const guardado = await api<ProductoAdmin>(producto ? 'PATCH' : 'POST', producto ? `/productos/${producto.id}` : '/productos', cuerpo);
@@ -291,6 +297,12 @@ function EditorProducto({
         await api('DELETE', `/productos/${guardado.id}/foto`);
       }
       await invalidar(CLAVES.admin.productos, CLAVES.admin.categorias, CLAVES.menu);
+      if (!producto && esCombo) {
+        // Un combo recién creado todavía no tiene partes: se queda en su ficha para armarlas
+        avisar(`${guardado.nombre} creado: ahora arma sus partes`, 'exito');
+        navegar(`/admin/menu/productos/${guardado.id}`, { replace: true });
+        return;
+      }
       avisar(producto ? 'Producto guardado' : `${guardado.nombre} ya está en el menú`, 'exito');
       navegar(`/admin/menu/productos?categoria=${guardado.categoriaId}`);
     } catch (e) {
@@ -304,7 +316,7 @@ function EditorProducto({
     <div className="admin-columna">
       <section className="tarjeta admin-bloque">
         <header className="seccion-cabeza">
-          <h1>{producto ? producto.nombre : 'Nuevo producto'}</h1>
+          <h1>{producto ? producto.nombre : esCombo ? 'Nuevo combo' : 'Nuevo producto'}</h1>
           <button className="boton boton-volver" onClick={() => navegar(-1)}>
             ‹ Volver
           </button>
@@ -316,19 +328,32 @@ function EditorProducto({
             guardar();
           }}
         >
+          {!producto && (
+            <Selector
+              etiqueta="Tipo"
+              value={tipo}
+              onCambio={(v) => setTipo(v as 'simple' | 'combo')}
+              opciones={[
+                { valor: 'simple', texto: 'Producto' },
+                { valor: 'combo', texto: 'Combo o menú del día' },
+              ]}
+              ayuda={esCombo ? 'Un combo se arma con otros productos, que el cliente escoge en cada parte.' : undefined}
+            />
+          )}
           <Campo etiqueta="Nombre" value={nombre} onCambio={setNombre} maxLength={80} required />
           <Campo etiqueta="Descripción" value={descripcion} onCambio={setDescripcion} maxLength={300} placeholder="Opcional: lo que trae" />
           <Selector etiqueta="Categoría" value={categoriaId} onCambio={setCategoriaId} opciones={categorias.map((c) => ({ valor: c.id, texto: c.nombre }))} />
           <Campo
-            etiqueta="Precio al público"
+            etiqueta={esCombo ? 'Precio del combo' : 'Precio al público'}
             inputMode="decimal"
             value={precio}
             onCambio={setPrecio}
-            ayuda={`Con el impuesto incluido. ${leerPesos(precio) ? pesos(leerPesos(precio)) : ''}`}
+            ayuda={`Con el impuesto incluido${esCombo ? ', con las opciones sin costo extra' : ''}. ${leerPesos(precio) ? pesos(leerPesos(precio)) : ''}`}
             placeholder="$0"
             required
           />
           <Selector etiqueta="Impuesto" value={impuesto} onCambio={setImpuesto} opciones={opcionesImpuesto} ayuda="Confírmalo con tu contador." />
+          {!esCombo && (
           <Selector
             etiqueta="Estación de cocina"
             value={estacionId}
@@ -337,6 +362,8 @@ function EditorProducto({
             opciones={estaciones.map((e) => ({ valor: e.id, texto: e.nombre }))}
             ayuda="Dónde se prepara: separa las comandas en la pantalla de cocina."
           />
+          )}
+          {!esCombo && (
           <fieldset className="permisos-grupo">
             <legend>Modificadores que se ofrecen</legend>
             {grupos.length === 0 && <p className="nota">Todavía no hay grupos de modificadores.</p>}
@@ -353,6 +380,7 @@ function EditorProducto({
               />
             ))}
           </fieldset>
+          )}
           <CargaImagen etiqueta="Foto" actual={foto === null ? null : producto?.imagenUrl} onCambio={setFoto} maximoMb={8} />
           {producto && (
             <Interruptor etiqueta="Activo" ayuda="Si lo apagas, desaparece de las tablets de todas las sedes." activo={activo} onCambio={setActivo} />
@@ -360,7 +388,7 @@ function EditorProducto({
           {error && <p className="error">{error}</p>}
           <div className="fila-botones">
             <button className="boton boton-primario" disabled={enviando || nombre.trim().length < 2 || !categoriaId}>
-              {enviando ? 'Guardando…' : producto ? 'Guardar cambios' : 'Crear producto'}
+              {enviando ? 'Guardando…' : producto ? 'Guardar cambios' : esCombo ? 'Crear combo' : 'Crear producto'}
             </button>
             {producto && !producto.vendido && (
               <button type="button" className="boton boton-peligro" onClick={() => setBorrando(true)}>
@@ -372,6 +400,7 @@ function EditorProducto({
         </form>
       </section>
 
+      {producto?.tipo === 'combo' && <EditorCombo combo={producto} productos={productos} />}
       {producto && sedes.length > 0 && <PrecioPorSede producto={producto} sedes={sedes} />}
 
       {borrando && producto && (
@@ -389,6 +418,117 @@ function EditorProducto({
         />
       )}
     </div>
+  );
+}
+
+interface ParteEditable {
+  nombre: string;
+  min: string;
+  max: string;
+  opciones: { productoId: string; producto: string; precio: string }[];
+}
+
+const aEditable = (s: SeccionComboAdmin): ParteEditable => ({
+  nombre: s.nombre,
+  min: String(s.min),
+  max: String(s.max),
+  opciones: s.opciones.map((o) => ({ productoId: o.productoId, producto: o.producto, precio: Number(o.precioExtra) ? String(Number(o.precioExtra)) : '' })),
+});
+
+/**
+ * Las partes del combo ("Plato fuerte", "Bebida") y, en cada una, los
+ * productos que se pueden escoger con su precio extra. Se guarda todo junto.
+ */
+function EditorCombo({ combo, productos }: { combo: ProductoAdmin; productos: ProductoAdmin[] }) {
+  const avisar = useAvisar();
+  const [partes, setPartes] = useState<ParteEditable[]>(
+    combo.secciones.length ? combo.secciones.map(aEditable) : [{ nombre: 'Plato fuerte', min: '1', max: '1', opciones: [] }],
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const elegibles = productos.filter((p) => p.tipo === 'simple' && p.activo);
+
+  const cambiar = (i: number, cambio: Partial<ParteEditable>) => setPartes((ps) => ps.map((p, j) => (j === i ? { ...p, ...cambio } : p)));
+
+  async function guardar() {
+    setEnviando(true);
+    setError(null);
+    try {
+      await api('PUT', `/productos/${combo.id}/combo`, {
+        secciones: partes.map((p) => ({
+          nombre: p.nombre.trim(),
+          min: Number(p.min),
+          max: Number(p.max),
+          opciones: p.opciones.map((o) => ({ productoId: o.productoId, precioExtra: leerPesos(o.precio) })),
+        })),
+      });
+      await invalidar(CLAVES.admin.productos, CLAVES.menu);
+      avisar('Combo guardado', 'exito');
+    } catch (e) {
+      setError(mensajeError(e));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <section className="tarjeta admin-bloque">
+      <h2>Partes del combo</h2>
+      <p className="nota">En cada parte el cliente escoge entre los productos que pongas. El precio extra se suma al del combo.</p>
+      {partes.map((parte, i) => (
+        <fieldset key={i} className="permisos-grupo parte-combo">
+          <legend>{parte.nombre || `Parte ${i + 1}`}</legend>
+          <div className="fila-campo">
+            <Campo etiqueta="Nombre" value={parte.nombre} onCambio={(v) => cambiar(i, { nombre: v })} maxLength={40} placeholder="Por ejemplo: Bebida" />
+            <Campo etiqueta="Mínimo" inputMode="numeric" value={parte.min} onCambio={(v) => cambiar(i, { min: v.replace(/\D/g, '') })} />
+            <Campo etiqueta="Máximo" inputMode="numeric" value={parte.max} onCambio={(v) => cambiar(i, { max: v.replace(/\D/g, '') })} />
+          </div>
+          <ul className="opciones-admin">
+            {parte.opciones.map((o, j) => (
+              <li key={o.productoId}>
+                <span>{o.producto}</span>
+                <span className="fila-campo">
+                  <Campo
+                    etiqueta="Precio extra"
+                    inputMode="decimal"
+                    value={o.precio}
+                    placeholder="$0"
+                    onCambio={(v) => cambiar(i, { opciones: parte.opciones.map((x, k) => (k === j ? { ...x, precio: v } : x)) })}
+                  />
+                  <button type="button" className="chip chip-quitar" onClick={() => cambiar(i, { opciones: parte.opciones.filter((_, k) => k !== j) })}>
+                    Quitar
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Selector
+            etiqueta="Agregar opción"
+            value=""
+            vacio="Escoge un producto…"
+            opciones={elegibles.filter((p) => !parte.opciones.some((o) => o.productoId === p.id)).map((p) => ({ valor: p.id, texto: `${p.nombre} (${p.categoria})` }))}
+            onCambio={(id) => {
+              const p = elegibles.find((x) => x.id === id);
+              if (p) cambiar(i, { opciones: [...parte.opciones, { productoId: p.id, producto: p.nombre, precio: '' }] });
+            }}
+          />
+          {partes.length > 1 && (
+            <button type="button" className="boton boton-peligro" onClick={() => setPartes((ps) => ps.filter((_, j) => j !== i))}>
+              Quitar esta parte
+            </button>
+          )}
+        </fieldset>
+      ))}
+      <button type="button" className="boton boton-suave" onClick={() => setPartes((ps) => [...ps, { nombre: '', min: '1', max: '1', opciones: [] }])}>
+        Agregar otra parte
+      </button>
+      {error && <p className="error">{error}</p>}
+      <div className="fila-botones">
+        <button className="boton boton-primario" disabled={enviando || partes.some((p) => !p.nombre.trim() || !p.opciones.length)} onClick={guardar}>
+          {enviando ? 'Guardando…' : 'Guardar combo'}
+        </button>
+      </div>
+    </section>
   );
 }
 

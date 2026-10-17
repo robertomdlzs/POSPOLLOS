@@ -28,6 +28,23 @@ export interface GrupoModificador {
   opciones: Opcion[];
 }
 
+/** Un producto que se puede escoger en una parte de un combo */
+export interface OpcionCombo {
+  productoId: string;
+  nombre: string;
+  precioExtra: string;
+  modificadores: GrupoModificador[];
+}
+
+/** Una parte de un combo ("Plato fuerte", "Bebida") */
+export interface SeccionCombo {
+  id: string;
+  nombre: string;
+  min: number;
+  max: number;
+  opciones: OpcionCombo[];
+}
+
 export interface Producto {
   id: string;
   nombre: string;
@@ -36,6 +53,9 @@ export interface Producto {
   imagenUrl: string | null;
   /** Se acabó durante el servicio: se muestra tachado y no se puede pedir */
   agotado: boolean;
+  tipo: 'simple' | 'combo';
+  /** Solo en los combos */
+  secciones: SeccionCombo[];
   categoriaId: string;
   categoria: string;
   modificadores: GrupoModificador[];
@@ -65,6 +85,9 @@ export interface ItemPedido {
   enviadoCocinaEn: string | null;
   motivoAnulacion: string | null;
   modificadores: { nombre: string; precioExtra: string }[];
+  /** Si es parte de un combo, el ítem del combo y la parte en que se escogió */
+  comboItemId: string | null;
+  comboSeccion: string | null;
 }
 
 export interface Pedido {
@@ -107,6 +130,8 @@ export interface ItemComanda {
   estacionId: string | null;
   estacion: string | null;
   modificadores: string[];
+  /** Nombre del combo del que es parte, si lo es */
+  combo: string | null;
 }
 
 export interface Autorizacion {
@@ -225,6 +250,16 @@ export interface ProductoAdmin {
   grupoIds: string[];
   /** Ya aparece en algún pedido: no se puede borrar, solo desactivar */
   vendido: boolean;
+  tipo: 'simple' | 'combo';
+  secciones: SeccionComboAdmin[];
+}
+
+export interface SeccionComboAdmin {
+  id: string;
+  nombre: string;
+  min: number;
+  max: number;
+  opciones: { productoId: string; producto: string; precioExtra: string }[];
 }
 
 export interface OpcionAdmin {

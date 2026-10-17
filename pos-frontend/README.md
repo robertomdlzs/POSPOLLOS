@@ -39,7 +39,7 @@ Vite queda escuchando en la red local. En la terminal aparece una dirección tip
 
 ## Menú
 
-Se administra en **Administración → Menú** (permiso `menu.editar`): categorías y su orden, productos con foto, impuesto, estación y modificadores, precio propio por sede, y grupos de modificadores con sus opciones. Las fotos se suben desde la ficha del producto. Cocina y supervisión marcan lo que se acaba con el botón **Agotados** de la pantalla de cocina (`menu.agotar`); las tablets lo muestran tachado al momento.
+Se administra en **Administración → Menú** (permiso `menu.editar`): categorías y su orden, productos con foto, impuesto, estación y modificadores, precio propio por sede, y grupos de modificadores con sus opciones. Las fotos se suben desde la ficha del producto. Un combo (o el menú del día) se crea como producto de tipo combo y se arma en su ficha: partes con mínimo y máximo, y los productos que se pueden escoger en cada una con su precio extra. En la tablet se arma con el botón **Armar**, que pide también los modificadores de cada parte (el término de la hamburguesa); en la comanda las partes van debajo del combo. Cocina y supervisión marcan lo que se acaba con el botón **Agotados** de la pantalla de cocina (`menu.agotar`); las tablets lo muestran tachado al momento.
 
 Para probar contra otro backend sin tocar el que corre en el 3000: `BACKEND_URL=http://localhost:3001 npm run dev`.
 

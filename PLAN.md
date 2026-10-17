@@ -108,8 +108,8 @@ Hoy los roles son un `ENUM` fijo. Se pasa a permisos por acción y a roles que d
 - [x] **1.3.3 Modificadores** (M). CRUD de grupos y opciones, y su asignación a productos.
 - [x] **1.3.4 Agotado en vivo** (S). Marcar y desmarcar un producto como agotado durante el servicio, con aviso por WebSocket a todas las tablets.
 - [x] **1.3.5 Precio por sede** (M). Migración con la tabla `producto_sede` (precio, disponible). Si no hay fila, aplica el precio general.
-- [ ] **1.3.6 Combos y menú del día** (L). Un producto de tipo combo con componentes a escoger. En cocina se ven los componentes y el inventario descuenta cada uno.
-- [x] **1.3.7 Pantallas del menú** (L). Categorías, productos con foto, modificadores y precio por sede en Administración → Menú; botón Agotados en la pantalla de cocina. La pantalla de combos llega con la 1.3.6.
+- [x] **1.3.6 Combos y menú del día** (L). Un producto de tipo combo con partes y, en cada una, productos a escoger con precio extra y sus propios modificadores. En cocina se ven los componentes y el inventario descuenta cada uno. El menú del día es un combo cuyas opciones se cambian cada día.
+- [x] **1.3.7 Pantallas del menú** (L). Categorías, productos con foto, modificadores y precio por sede en Administración → Menú; botón Agotados en la pantalla de cocina. Los combos se arman en la misma ficha de producto.
 
 ### 1.4 Salón, cocina y configuración
 

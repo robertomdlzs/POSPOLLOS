@@ -743,6 +743,24 @@ input::placeholder { color: var(--tinta-3); }
   box-shadow: var(--relieve);
 }
 .producto.en-borrador { box-shadow: var(--relieve), inset 0 0 0 2px var(--ambar); }
+/* Editor de partes del combo: nombre ancho, mínimo y máximo cortos, opciones en una línea */
+.parte-combo > .fila-campo { max-width: none; }
+.parte-combo > .fila-campo { flex-wrap: nowrap; }
+.parte-combo > .fila-campo .campo:first-child { flex: 1 1 160px; }
+.parte-combo > .fila-campo .campo:not(:first-child) { flex: 0 1 90px; }
+.parte-combo > .boton { justify-self: start; }
+.parte-combo .opciones-admin li { align-items: flex-end; }
+.parte-combo .opciones-admin li > span:first-child { padding-bottom: 0.9rem; }
+.parte-combo .opciones-admin li .fila-campo { flex-wrap: nowrap; align-items: flex-end; max-width: 300px; }
+.parte-combo .opciones-admin li .fila-campo .campo { flex: 1 1 140px; }
+.parte-combo .opciones-admin li .fila-campo > .chip { margin-bottom: 0.2rem; }
+
+/* Partes de un combo en la comanda y al armarlo */
+.linea-parte { padding-left: 0.6rem; border-left: 2px solid var(--linea); }
+.parte-modificadores { display: grid; gap: 0.6rem; margin-top: 0.4rem; padding: 0.7rem 0.8rem; border-radius: var(--r-control); box-shadow: var(--hundido-sm); }
+.parte-titulo { font-weight: 700; }
+.ticket-combo { display: block; color: var(--ambar); font-size: 0.82rem; font-weight: 700; }
+
 /* Agotado: se hunde y se apaga, para que se lea de reojo que no se puede pedir */
 .producto.agotado { box-shadow: var(--hundido-sm); }
 .producto.agotado .producto-foto,
