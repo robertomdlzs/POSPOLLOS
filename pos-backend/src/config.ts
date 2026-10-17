@@ -31,6 +31,8 @@ export const config = {
   /** Vida del refresh token, en días */
   refreshTtlDias: Number(process.env.REFRESH_TTL_DAYS ?? 7),
   trustProxy: leerTrustProxy(process.env.TRUST_PROXY),
+  /** Carpeta donde se guardan las fotos subidas; se sirven en /api/archivos/ */
+  archivosDir: process.env.ARCHIVOS_DIR ?? 'archivos',
   /** Documentación OpenAPI en /api/docs. Apagada en producción salvo que se pida */
   docsApi: (process.env.DOCS_API ?? (process.env.NODE_ENV === 'production' ? 'false' : 'true')) === 'true',
   /** trace, debug, info, warn, error */

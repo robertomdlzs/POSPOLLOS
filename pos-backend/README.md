@@ -108,6 +108,7 @@ Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, 
 | GET · POST · PATCH · DELETE | `/categorias` · `/categorias/:id` | `menu.editar` | Categorías; `PUT /categorias/orden` con los ids en su orden |
 | GET · POST · PATCH · DELETE | `/productos` · `/productos/:id` | ídem | Productos con impuesto, estación y grupos de modificadores; lo vendido no se borra, se desactiva |
 | PUT | `/productos/orden` · `/productos/:id/sedes/:sedeId` | ídem | Orden dentro de la categoría · precio propio y disponibilidad por sede |
+| POST · DELETE | `/productos/:id/foto` | `menu.editar` | Foto (multipart, campo `foto`): se guarda en WebP de 800×600 y se sirve en `/api/archivos/` |
 | PUT | `/productos/:id/agotado` | `menu.agotar` | Agotado en la sede; avisa a las tablets (`menu.cambio`) |
 | GET · POST · PATCH · DELETE | `/grupos-modificadores` · `/grupos-modificadores/:id` | `menu.editar` | Grupos con mínimo, máximo y opciones; `POST /:id/opciones`, `PATCH /modificadores/:id` |
 | GET | `/usuarios?buscar=&limite=&cursor=` | `usuario.editar` | Usuarios con sus roles por sede, paginados |
@@ -150,7 +151,7 @@ Cada conexión entra a la sala de su sede, así que una sede nunca ve comandas d
 
 ## Fotos de productos
 
-La migración `003` agrega `producto.imagen_url`, que `/api/menu` devuelve como `imagenUrl`. Por ahora se llena con SQL; el frontend muestra la inicial del producto cuando no hay foto.
+Se suben desde el panel (`POST /api/productos/:id/foto`). El servidor las recorta a 4:3, las reduce a 800×600 y las guarda en WebP en la carpeta `ARCHIVOS_DIR` (por defecto `archivos/`, fuera de git), que se sirve en `/api/archivos/`. Cada subida tiene un nombre nuevo, así que las tablets nunca se quedan con la foto vieja en caché. Con varias instancias del backend habrá que pasar `AlmacenArchivos` (`src/archivos/almacen.ts`) a un almacenamiento S3-compatible.
 
 ## Pendiente
 

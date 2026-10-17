@@ -1,5 +1,20 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { RequierePermiso, UsuarioActual } from '../common/decoradores';
 import type { UsuarioToken } from '../common/tipos';
 import {
@@ -93,6 +108,21 @@ export class ProductosController {
   @HttpCode(204)
   async borrar(@Param('id', ParseUUIDPipe) id: string, @UsuarioActual() u: UsuarioToken) {
     await this.menu.borrarProducto(id, u);
+  }
+
+  /** multipart/form-data con el campo "foto" (hasta 8 MB); se guarda en WebP */
+  @Post(':id/foto')
+  @RequierePermiso('menu.editar')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('foto', { limits: { fileSize: 8 * 1024 * 1024, files: 1 } }))
+  subirFoto(@Param('id', ParseUUIDPipe) id: string, @UploadedFile() foto: { buffer: Buffer } | undefined, @UsuarioActual() u: UsuarioToken) {
+    return this.menu.subirFoto(id, foto?.buffer, u);
+  }
+
+  @Delete(':id/foto')
+  @RequierePermiso('menu.editar')
+  quitarFoto(@Param('id', ParseUUIDPipe) id: string, @UsuarioActual() u: UsuarioToken) {
+    return this.menu.quitarFoto(id, u);
   }
 
   /** Precio propio y si se vende en esa sede */

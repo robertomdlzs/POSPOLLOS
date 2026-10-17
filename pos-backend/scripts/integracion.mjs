@@ -7,6 +7,8 @@
 // Uso: npm run test:integracion
 import 'dotenv/config';
 import { spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
@@ -68,7 +70,8 @@ try {
   servidor = spawn(process.execPath, ['dist/main.js'], {
     cwd: raiz,
     stdio: ['ignore', 'ignore', 'inherit'],
-    env: { ...process.env, DATABASE_URL: urlPrueba, PORT: String(PUERTO) },
+    // Las fotos de prueba van a una carpeta temporal, no a la de desarrollo
+    env: { ...process.env, DATABASE_URL: urlPrueba, PORT: String(PUERTO), ARCHIVOS_DIR: join(tmpdir(), 'pos-prueba-archivos') },
   });
   await esperarServidor(base);
   for (const prueba of ['tests/flujo.e2e.mjs', 'tests/usuarios.e2e.mjs', 'tests/menu.e2e.mjs']) await correr([prueba], { API_URL: base });

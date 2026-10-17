@@ -1,11 +1,13 @@
 import { config } from './config';
 import { ValidationPipe } from '@nestjs/common';
+import { resolve } from 'node:path';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { PREFIJO_ARCHIVOS } from './archivos/almacen';
 import { PgErrorFilter } from './common/pg-error.filter';
 
 async function bootstrap() {
@@ -16,6 +18,8 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors({ origin: config.corsOrigins, credentials: true });
   app.setGlobalPrefix('api');
+  // Fotos subidas: públicas, y con nombre que cambia en cada subida, así que se cachean un año
+  app.useStaticAssets(resolve(config.archivosDir), { prefix: PREFIJO_ARCHIVOS, maxAge: '365d', immutable: true, index: false });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // descarta campos que no estén en el DTO

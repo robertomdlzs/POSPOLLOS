@@ -117,6 +117,27 @@ assert.deepEqual(conSalsas.modificadores.map((g) => g.nombre), ['Salsas', 'Adici
 assert.deepEqual(conSalsas.modificadores[0].opciones.map((o) => o.nombre), ['Rosada']);
 ok('Grupo Salsas creado y asignado en orden; una opción desactivada deja de ofrecerse');
 
+// --- Fotos ----------------------------------------------------------------
+const sharp = (await import('sharp')).default;
+const subir = async (contenido, tipo, nombre) => {
+  const form = new FormData();
+  form.append('foto', new Blob([contenido], { type: tipo }), nombre);
+  const r = await fetch(`${BASE}/api/productos/${prod.data.id}/foto`, { method: 'POST', headers: { authorization: `Bearer ${A}` }, body: form });
+  return { status: r.status, data: await r.json() };
+};
+const png = await sharp({ create: { width: 1200, height: 1600, channels: 3, background: '#c9772a' } }).png().toBuffer();
+const conFoto = await subir(png, 'image/png', 'torta.png');
+esperar(201, conFoto, 'subir foto');
+const servida = await fetch(`${BASE}${conFoto.data.imagenUrl}`);
+assert.equal(servida.status, 200);
+assert.equal(servida.headers.get('content-type'), 'image/webp');
+const meta = await sharp(Buffer.from(await servida.arrayBuffer())).metadata();
+assert.deepEqual([meta.format, meta.width, meta.height], ['webp', 800, 600]);
+esperar(400, await subir(Buffer.from('no soy una imagen'), 'image/png', 'falsa.png'), 'archivo falso');
+esperar(200, await api('DELETE', `/productos/${prod.data.id}/foto`, { token: A }), 'quitar foto');
+assert.equal((await fetch(`${BASE}${conFoto.data.imagenUrl}`)).status, 404);
+ok('La foto se guarda en WebP de 800×600 aunque llegue vertical; un archivo que no es imagen se rechaza; al quitarla se borra');
+
 // --- Borrar ---------------------------------------------------------------
 const clasica = (await api('GET', '/productos', { token: A })).data.find((p) => p.nombre === 'Hamburguesa clásica');
 esperar(409, await api('DELETE', `/productos/${clasica.id}`, { token: A }), 'borrar vendido');

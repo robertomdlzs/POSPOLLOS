@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { AlmacenModule } from './archivos/almacen';
 import { AuditoriaModule } from './auditoria/auditoria.service';
 import { AuthModule } from './auth/auth.module';
 import { CajaModule } from './caja/caja.module';
@@ -32,6 +33,7 @@ import { VentasModule } from './ventas/ventas.module';
     DatabaseModule,
     RevocacionModule,
     AuditoriaModule,
+    AlmacenModule,
     AuthModule,
     MenuModule,
     InventarioModule,

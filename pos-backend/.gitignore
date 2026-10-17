@@ -2,3 +2,5 @@ node_modules/
 dist/
 .env
 *.tsbuildinfo
+# Fotos subidas en desarrollo
+archivos/

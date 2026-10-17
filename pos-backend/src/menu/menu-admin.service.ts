@@ -1,4 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import sharp from 'sharp';
+import { AlmacenArchivos } from '../archivos/almacen';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { CocinaGateway } from '../cocina/cocina.gateway';
 import { aCentavos, aPesos } from '../common/dinero';
@@ -30,6 +32,7 @@ export class MenuAdminService {
     private readonly db: DatabaseService,
     private readonly auditoria: AuditoriaService,
     private readonly gateway: CocinaGateway,
+    private readonly almacen: AlmacenArchivos,
   ) {}
 
   // -------------------------------------------------------------- categorías
@@ -218,10 +221,53 @@ export class MenuAdminService {
     if (vendido) throw new ConflictException('Este producto ya se vendió: desactívalo en lugar de borrarlo');
     await this.db.transaction(async (c) => {
       await this.db.query(`DELETE FROM receta WHERE producto_id = $1`, [id], c);
-      await this.db.query(`DELETE FROM producto WHERE id = $1`, [id], c);
+      const borrado = await this.db.one(`DELETE FROM producto WHERE id = $1 RETURNING imagen_url`, [id], c);
+      await this.almacen.borrar(borrado?.imagen_url);
       await this.registrar(u, 'producto_borrar', 'producto', id, { nombre: p.nombre }, c);
     });
     await this.avisar(u);
+  }
+
+  /**
+   * Foto del producto: se recorta a 4:3, se reduce a 800×600 y se guarda en
+   * WebP, que pesa poco para las tablets. Si el archivo no es una imagen que
+   * sharp entienda, se rechaza aunque diga ser una.
+   */
+  async subirFoto(id: string, archivo: Buffer | undefined, u: UsuarioToken) {
+    if (!archivo?.length) throw new BadRequestException('Falta la foto');
+    const p = await this.db.one(`SELECT imagen_url FROM producto WHERE id = $1 AND empresa_id = $2`, [id, u.empresaId]);
+    if (!p) throw new NotFoundException('Producto no encontrado');
+    let webp: Buffer;
+    try {
+      webp = await sharp(archivo, { limitInputPixels: 40_000_000 })
+        .rotate() // respeta la orientación con que la tomó el celular
+        .resize(800, 600, { fit: 'cover', position: 'attention' })
+        .webp({ quality: 80 })
+        .toBuffer();
+    } catch {
+      throw new BadRequestException('El archivo no es una imagen válida');
+    }
+    // Nombre nuevo en cada subida: así las tablets no se quedan con la foto vieja en caché
+    const url = await this.almacen.guardar(`productos/${id}-${Date.now()}.webp`, webp);
+    await this.db.query(`UPDATE producto SET imagen_url = $2 WHERE id = $1`, [id, url]);
+    await this.almacen.borrar(p.imagen_url);
+    await this.registrar(u, 'producto_foto', 'producto', id, { url });
+    await this.avisar(u);
+    return this.producto(id, u);
+  }
+
+  async quitarFoto(id: string, u: UsuarioToken) {
+    const p = await this.db.one(
+      `UPDATE producto x SET imagen_url = NULL FROM producto antes
+        WHERE x.id = $1 AND x.empresa_id = $2 AND antes.id = x.id
+       RETURNING antes.imagen_url AS anterior`,
+      [id, u.empresaId],
+    );
+    if (!p) throw new NotFoundException('Producto no encontrado');
+    await this.almacen.borrar(p.anterior);
+    await this.registrar(u, 'producto_foto', 'producto', id, { url: null });
+    await this.avisar(u);
+    return this.producto(id, u);
   }
 
   /** Precio propio y disponibilidad en una sede */
