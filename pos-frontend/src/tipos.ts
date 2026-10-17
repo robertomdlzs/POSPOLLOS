@@ -34,6 +34,8 @@ export interface Producto {
   descripcion: string | null;
   precio: string;
   imagenUrl: string | null;
+  /** Se acabó durante el servicio: se muestra tachado y no se puede pedir */
+  agotado: boolean;
   categoriaId: string;
   categoria: string;
   modificadores: GrupoModificador[];
@@ -186,6 +188,63 @@ export interface PermisoCatalogo {
 }
 
 export interface Sede {
+  id: string;
+  nombre: string;
+}
+
+export type TipoImpuesto = 'impoconsumo' | 'iva' | 'exento';
+
+export interface CategoriaAdmin {
+  id: string;
+  nombre: string;
+  orden: number;
+  activa: boolean;
+  productos: number;
+}
+
+export interface ProductoAdmin {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  /** Precio general */
+  precio: string;
+  tipoImpuesto: TipoImpuesto;
+  tasaImpuesto: string;
+  controlaStock: boolean;
+  activo: boolean;
+  orden: number;
+  imagenUrl: string | null;
+  categoriaId: string;
+  categoria: string;
+  estacionId: string | null;
+  estacion: string | null;
+  /** Precio propio en la sede de la sesión, si tiene */
+  precioSede: string | null;
+  disponible: boolean;
+  agotado: boolean;
+  grupoIds: string[];
+  /** Ya aparece en algún pedido: no se puede borrar, solo desactivar */
+  vendido: boolean;
+}
+
+export interface OpcionAdmin {
+  id: string;
+  nombre: string;
+  precioExtra: string;
+  activo: boolean;
+}
+
+export interface GrupoAdmin {
+  id: string;
+  nombre: string;
+  min: number;
+  max: number;
+  orden: number;
+  opciones: OpcionAdmin[];
+  productos: number;
+}
+
+export interface Estacion {
   id: string;
   nombre: string;
 }

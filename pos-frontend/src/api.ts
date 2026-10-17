@@ -55,14 +55,16 @@ export function alCambiarSesion(f: (s: Sesion | null) => void) {
 // ---------------------------------------------------------------------------
 
 async function pedir(metodo: string, ruta: string, body: unknown, token?: string) {
+  // Un FormData (subir una foto) va tal cual: el navegador pone su propio content-type
+  const formulario = body instanceof FormData;
   try {
     return await fetch(`${BASE}/api${ruta}`, {
       method: metodo,
       headers: {
-        'content-type': 'application/json',
+        ...(formulario ? {} : { 'content-type': 'application/json' }),
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : formulario ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'No hay conexión con el servidor');

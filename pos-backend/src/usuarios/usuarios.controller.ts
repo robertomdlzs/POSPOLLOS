@@ -65,14 +65,14 @@ export class UsuariosController {
   }
 }
 
-/** Sedes activas, para asignar un rol en cada una. Pasará al módulo de salón (tarea 1.4) */
+/** Sedes activas, para asignar roles y precios por sede. Pasará al módulo de salón (tarea 1.4) */
 @ApiTags('Usuarios')
 @Controller('sedes')
 export class SedesController {
   constructor(private readonly usuarios: UsuariosService) {}
 
   @Get()
-  @RequierePermiso('usuario.editar', 'salon.editar')
+  @RequierePermiso('usuario.editar', 'salon.editar', 'menu.editar')
   listar(@UsuarioActual() u: UsuarioToken) {
     return this.usuarios.sedes(u);
   }

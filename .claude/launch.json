@@ -12,6 +12,20 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "pos-backend", "run", "start:dev"],
       "port": 3000
+    },
+    {
+      "name": "backend-prueba",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "pos-backend", "run", "start:dev"],
+      "env": { "PORT": "3001" },
+      "port": 3001
+    },
+    {
+      "name": "frontend-prueba",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "pos-frontend", "run", "dev", "--", "--port", "5175"],
+      "env": { "BACKEND_URL": "http://localhost:3001" },
+      "port": 5175
     }
   ]
 }

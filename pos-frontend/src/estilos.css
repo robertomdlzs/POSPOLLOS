@@ -245,6 +245,56 @@ input::placeholder { color: var(--tinta-3); }
 .fila-campo .campo { flex: 1 1 260px; }
 .fila-campo > .boton { margin-top: 1.75rem; }
 
+/* Menú: categorías a la izquierda, productos de la elegida a la derecha */
+.menu-admin { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; align-items: start; gap: 1.5rem; }
+.lista-ordenable { display: grid; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.lista-ordenable li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.2rem;
+  border-radius: var(--r-control);
+}
+.lista-ordenable li.elegida { box-shadow: var(--hundido-sm); }
+.lista-ordenable li.inactiva .lista-nombre { opacity: 0.55; }
+.lista-nombre {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 48px;
+  padding: 0.3rem 0.6rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+.lista-nombre .nota { display: block; font-weight: 400; }
+.lista-acciones { display: flex; gap: 0.35rem; }
+.lista-acciones .boton-icono { width: 40px; height: 40px; font-size: 0.8rem; }
+.lista-acciones .boton-icono:disabled { opacity: 0.3; box-shadow: none; }
+.miniatura {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--meson-2);
+  box-shadow: var(--hundido-sm);
+  color: var(--tinta-3);
+}
+.miniatura img { width: 100%; height: 100%; object-fit: cover; }
+.opciones-admin { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.opciones-admin li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-top: 1px solid var(--linea-suave); }
+.opciones-admin li.inactiva > span:first-child { opacity: 0.55; text-decoration: line-through; }
+
+@media (max-width: 900px) {
+  .menu-admin { grid-template-columns: 1fr; }
+}
+
 /* Editor de permisos de un rol */
 .permisos-grupos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
 .permisos-grupo {
@@ -693,6 +743,14 @@ input::placeholder { color: var(--tinta-3); }
   box-shadow: var(--relieve);
 }
 .producto.en-borrador { box-shadow: var(--relieve), inset 0 0 0 2px var(--ambar); }
+/* Agotado: se hunde y se apaga, para que se lea de reojo que no se puede pedir */
+.producto.agotado { box-shadow: var(--hundido-sm); }
+.producto.agotado .producto-foto,
+.producto.agotado .producto-nombre,
+.producto.agotado .producto-precio { opacity: 0.45; }
+.producto.agotado .producto-nombre { text-decoration: line-through; }
+.producto-agotado { color: var(--rojo); font-weight: 700; font-size: 0.9rem; }
+.producto-toque:disabled { cursor: not-allowed; }
 .producto-toque {
   display: flex;
   flex-direction: column;

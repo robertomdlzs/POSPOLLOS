@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api, mensajeError } from '../api';
+import { Agotados } from '../componentes/Agotados';
 import { useAvisar } from '../componentes/Avisos';
 import { canalCocina } from '../socket';
 import type { EstadoItem, ItemComanda } from '../tipos';
 import { CLAVES, invalidar, useDatos } from '../datos';
+import { usePuede } from '../permisos';
 import { NOMBRE_SERVICIO, cant, minutosDesde, pitar } from '../util';
 
 const SIGUIENTE: Partial<Record<EstadoItem, { estado: EstadoItem; texto: string }>> = {
@@ -26,6 +28,8 @@ export function Cocina() {
   const pendientes = useDatos(CLAVES.cocina, () => api<ItemComanda[]>('GET', '/cocina/pendientes'));
   const [estacion, setEstacion] = useState<string>('todas');
   const [recientes, setRecientes] = useState<Set<string>>(new Set());
+  const puede = usePuede();
+  const [viendoAgotados, setViendoAgotados] = useState(false);
   const [, setTic] = useState(0);
 
   // La lista se actualiza sola con useTiempoReal; aquí solo el pitido y los avisos
@@ -89,6 +93,11 @@ export function Cocina() {
             </button>
           ))}
         </div>
+        {puede('menu.agotar') && (
+          <button className="chip chip-oscuro" onClick={() => setViendoAgotados(true)}>
+            Agotados
+          </button>
+        )}
         <p className="cocina-cuenta">
           {tickets.length} {tickets.length === 1 ? 'comanda' : 'comandas'}
         </p>
@@ -97,6 +106,7 @@ export function Cocina() {
       {pendientes.error && <p className="error">{pendientes.error}</p>}
       {!pendientes.cargando && tickets.length === 0 && <p className="cocina-vacia">No hay comandas pendientes. Las nuevas aparecen aquí con un pitido.</p>}
 
+      {viendoAgotados && <Agotados onCerrar={() => setViendoAgotados(false)} />}
       <div className="riel">
         {tickets.map((t) => {
           const min = minutosDesde(t.enviado);

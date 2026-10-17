@@ -37,15 +37,11 @@ Vite queda escuchando en la red local. En la terminal aparece una dirección tip
 - **Caja:** abrir turno con base, ventas y efectivo esperado en vivo, ingresos y retiros, y cierre con cuadre.
 - **Cocina:** riel de comandas por estación; Empezar → Listo → Entregado. Las que pasan de 15 minutos se marcan en rojo.
 
-## Fotos de productos
+## Menú
 
-Cada producto acepta una foto en `producto.imagen_url` (migración `003` del backend). Mientras no haya una pantalla de administración del menú, se carga con SQL:
+Se administra en **Administración → Menú** (permiso `menu.editar`): categorías y su orden, productos con foto, impuesto, estación y modificadores, precio propio por sede, y grupos de modificadores con sus opciones. Las fotos se suben desde la ficha del producto. Cocina y supervisión marcan lo que se acaba con el botón **Agotados** de la pantalla de cocina (`menu.agotar`); las tablets lo muestran tachado al momento.
 
-```sql
-UPDATE producto SET imagen_url = 'https://tu-servidor/fotos/hamburguesa.jpg' WHERE nombre = 'Hamburguesa clásica';
-```
-
-Sin foto, la tarjeta muestra la inicial del producto.
+Para probar contra otro backend sin tocar el que corre en el 3000: `BACKEND_URL=http://localhost:3001 npm run dev`.
 
 ## Producción
 

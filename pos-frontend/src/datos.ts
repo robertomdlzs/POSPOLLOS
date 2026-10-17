@@ -32,6 +32,11 @@ export const CLAVES = {
     usuarios: ['admin', 'usuarios'],
     usuario: (id: string) => ['admin', 'usuarios', id],
     roles: ['admin', 'roles'],
+    categorias: ['admin', 'categorias'],
+    productos: ['admin', 'productos'],
+    producto: (id: string) => ['admin', 'productos', id],
+    grupos: ['admin', 'grupos'],
+    estaciones: ['admin', 'estaciones'],
     permisos: ['admin', 'permisos'],
     sedes: ['admin', 'sedes'],
   },
@@ -83,7 +88,11 @@ export function useTiempoReal() {
     canal.on('item.estado', deItems);
     canal.on('item.anulado', deItems);
     canal.on('connect', reconectado);
+    // Cambió el menú (un precio, un producto nuevo, un agotado): las tablets lo recargan
+    const menu = () => invalidar(CLAVES.menu, CLAVES.admin.productos);
+    canal.on('menu.cambio', menu);
     return () => {
+      canal.off('menu.cambio', menu);
       canal.off('comanda.nueva', deItems);
       canal.off('item.estado', deItems);
       canal.off('item.anulado', deItems);

@@ -181,8 +181,13 @@ export function Pedido({ contexto, onCreado, onVolver, onIrCaja }: Props) {
           const enBorrador = lineas.filter((l) => l.producto.id === prod.id).reduce((s, l) => s + l.cantidad, 0);
           const simple = !prod.modificadores.length;
           return (
-            <article key={prod.id} className={`producto ${enBorrador ? 'en-borrador' : ''}`}>
-              <button className="producto-toque" onClick={() => tocarProducto(prod)} aria-label={`Agregar ${prod.nombre}`}>
+            <article key={prod.id} className={`producto ${enBorrador ? 'en-borrador' : ''} ${prod.agotado ? 'agotado' : ''}`}>
+              <button
+                className="producto-toque"
+                onClick={() => tocarProducto(prod)}
+                disabled={prod.agotado}
+                aria-label={prod.agotado ? `${prod.nombre}: agotado` : `Agregar ${prod.nombre}`}
+              >
                 <span className="producto-foto">
                   {prod.imagenUrl ? (
                     <img src={prod.imagenUrl} alt="" loading="lazy" />
@@ -197,7 +202,9 @@ export function Pedido({ contexto, onCreado, onVolver, onIrCaja }: Props) {
               </button>
               <div className="producto-pie">
                 <span className="producto-precio">{pesos(prod.precio)}</span>
-                {simple && enBorrador > 0 ? (
+                {prod.agotado ? (
+                  <span className="producto-agotado">Agotado</span>
+                ) : simple && enBorrador > 0 ? (
                   <span className="producto-pasos">
                     <button onClick={() => quitarUno(prod)} aria-label={`Uno menos de ${prod.nombre}`}>
                       −

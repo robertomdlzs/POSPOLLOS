@@ -1,11 +1,13 @@
 import { Navigate, NavLink, Route, Routes } from 'react-router';
 import { usePuede, type Permiso } from '../../permisos';
+import { Menu } from './Menu';
 import { Muestra } from './Muestra';
 import { FichaRol, Roles } from './Roles';
 import { FichaUsuario, Usuarios } from './Usuarios';
 
 /** Áreas del panel; cada una aparece si se tiene alguno de sus permisos */
 const AREAS: { ruta: string; nombre: string; permisos: Permiso[] }[] = [
+  { ruta: 'menu', nombre: 'Menú', permisos: ['menu.editar'] },
   { ruta: 'usuarios', nombre: 'Usuarios', permisos: ['usuario.editar'] },
   { ruta: 'roles', nombre: 'Roles y permisos', permisos: ['rol.editar', 'usuario.editar'] },
 ];
@@ -27,6 +29,7 @@ export function Admin() {
       </nav>
       <Routes>
         <Route index element={<Navigate to={`/admin/${inicio}`} replace />} />
+        {puede('menu.editar') && <Route path="menu/*" element={<Menu />} />}
         {puede('usuario.editar') && (
           <>
             <Route path="usuarios" element={<Usuarios />} />
