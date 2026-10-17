@@ -2,7 +2,7 @@
 //   1. rehace un esquema de prueba (pos_prueba) dentro de la base de DATABASE_URL,
 //   2. aplica las migraciones y la semilla en ese esquema,
 //   3. compila y arranca el servidor apuntando a él, en un puerto aparte,
-//   4. corre las pruebas de tests/ (flujo, usuarios y menú) y apaga el servidor.
+//   4. corre las pruebas de tests/ (flujo, usuarios, menú y combos) y apaga el servidor.
 // Los datos reales de la base no se tocan: todo vive en el esquema de prueba.
 // Uso: npm run test:integracion
 import 'dotenv/config';
@@ -74,7 +74,7 @@ try {
     env: { ...process.env, DATABASE_URL: urlPrueba, PORT: String(PUERTO), ARCHIVOS_DIR: join(tmpdir(), 'pos-prueba-archivos') },
   });
   await esperarServidor(base);
-  for (const prueba of ['tests/flujo.e2e.mjs', 'tests/usuarios.e2e.mjs', 'tests/menu.e2e.mjs']) await correr([prueba], { API_URL: base });
+  for (const prueba of ['tests/flujo.e2e.mjs', 'tests/usuarios.e2e.mjs', 'tests/menu.e2e.mjs', 'tests/combos.e2e.mjs']) await correr([prueba], { API_URL: base });
   codigo = 0;
 } catch (e) {
   console.error(`\n✘ ${e.message}`);

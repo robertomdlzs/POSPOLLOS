@@ -17,6 +17,21 @@ import { AgregarItemsDto, AnularItemDto, CrearPedidoDto, ItemPedidoDto } from '.
 
 const ESTADOS_EDITABLES = ['abierto', 'en_cocina', 'servido'];
 
+interface ProductoVendible {
+  id: string;
+  nombre: string;
+  tipo: 'simple' | 'combo';
+  precio: string;
+  tipo_impuesto: string;
+  tasa_impuesto: string;
+}
+
+interface ModificadorElegido {
+  id: string;
+  nombre: string;
+  precio_extra: string;
+}
+
 @Injectable()
 export class PedidosService {
   constructor(
@@ -137,13 +152,15 @@ export class PedidosService {
       const p = await this.bloquear(c, pedidoId, u);
       this.exigirEditable(p);
       const item = await this.db.one(
-        `SELECT id, nombre_producto, estado, enviado_cocina_en FROM pedido_item
+        `SELECT id, nombre_producto, estado, enviado_cocina_en, combo_item_id FROM pedido_item
           WHERE id = $1 AND pedido_id = $2 FOR UPDATE`,
         [itemId, pedidoId],
         c,
       );
       if (!item) throw new NotFoundException('Ítem no encontrado');
       if (item.estado === 'anulado') throw new ConflictException('El ítem ya estaba anulado');
+      // Una parte de un combo no se quita sola: el combo se cobra completo
+      if (item.combo_item_id) throw new BadRequestException('Esto es parte de un combo: anula el combo completo');
 
       // Lo que ya salió a cocina cuesta plata: solo un supervisor lo puede anular
       let autorizadoPor: string | null = null;
@@ -153,8 +170,10 @@ export class PedidosService {
         else throw new ForbiddenException('Este producto ya está en cocina: se requiere autorización de un supervisor');
       }
 
+      // Anular un combo anula también sus partes, que son las que ve cocina
       await this.db.query(
-        `UPDATE pedido_item SET estado = 'anulado', anulado_por = $2, motivo_anulacion = $3 WHERE id = $1`,
+        `UPDATE pedido_item SET estado = 'anulado', anulado_por = $2, motivo_anulacion = $3
+          WHERE (id = $1 OR combo_item_id = $1) AND estado <> 'anulado'`,
         [itemId, u.id, dto.motivo],
         c,
       );
@@ -229,6 +248,7 @@ export class PedidosService {
       `SELECT i.id, i.producto_id AS "productoId", i.nombre_producto AS producto, i.cantidad,
               i.precio_unitario, i.tasa_impuesto, i.notas, i.estado,
               i.enviado_cocina_en AS "enviadoCocinaEn", i.motivo_anulacion AS "motivoAnulacion",
+              i.combo_item_id AS "comboItemId", i.combo_seccion AS "comboSeccion",
               COALESCE((SELECT sum(precio_extra) FROM pedido_item_modificador WHERE pedido_item_id = i.id), 0) AS extras,
               COALESCE((SELECT json_agg(json_build_object('nombre', nombre, 'precioExtra', precio_extra))
                           FROM pedido_item_modificador WHERE pedido_item_id = i.id), '[]') AS modificadores
@@ -283,65 +303,136 @@ export class PedidosService {
 
   private async insertarItems(db: Db, pedidoId: string, items: ItemPedidoDto[], u: UsuarioToken) {
     for (const it of items) {
-      // El precio que vale es el de la sede, si tiene uno propio
-      const producto = await this.db.one(
-        `SELECT p.id, p.nombre, COALESCE(ps.precio, p.precio) AS precio, p.tipo_impuesto, p.tasa_impuesto,
-                COALESCE(ps.disponible, true) AS disponible, COALESCE(ps.agotado, false) AS agotado
-           FROM producto p
-           LEFT JOIN producto_sede ps ON ps.producto_id = p.id AND ps.sede_id = $3
-          WHERE p.id = $1 AND p.empresa_id = $2 AND p.activo`,
-        [it.productoId, u.empresaId, u.sedeId],
-        db,
-      );
-      if (!producto || !producto.disponible) throw new BadRequestException(`Producto no disponible: ${it.productoId}`);
-      if (producto.agotado) throw new BadRequestException(`${producto.nombre} está agotado`);
-
-      const modIds = [...new Set(it.modificadorIds ?? [])];
-      const grupos = await this.db.query(
-        `SELECT g.id, g.nombre, g.min_seleccion, g.max_seleccion
-           FROM grupo_modificador g
-           JOIN producto_grupo_modificador pg ON pg.grupo_id = g.id
-          WHERE pg.producto_id = $1`,
-        [producto.id],
-        db,
-      );
-      const mods = modIds.length
-        ? await this.db.query(
-            `SELECT id, grupo_id, nombre, precio_extra FROM modificador WHERE id = ANY($1::uuid[]) AND activo`,
-            [modIds],
-            db,
-          )
-        : [];
-      if (mods.length !== modIds.length) throw new BadRequestException('Hay un modificador que no existe o no está activo');
-      for (const m of mods) {
-        if (!grupos.some((g) => g.id === m.grupo_id)) {
-          throw new BadRequestException(`"${m.nombre}" no aplica a ${producto.nombre}`);
-        }
+      const producto = await this.productoVendible(db, it.productoId, u);
+      if (producto.tipo === 'combo') {
+        await this.insertarCombo(db, pedidoId, producto, it, u);
+        continue;
       }
-      for (const g of grupos) {
-        const elegidos = mods.filter((m) => m.grupo_id === g.id).length;
-        if (elegidos < g.min_seleccion || elegidos > g.max_seleccion) {
-          const rango = g.min_seleccion === g.max_seleccion ? `${g.min_seleccion}` : `entre ${g.min_seleccion} y ${g.max_seleccion}`;
-          throw new BadRequestException(`${producto.nombre}: en "${g.nombre}" elige ${rango} opción(es)`);
-        }
-      }
+      if (it.componentes?.length) throw new BadRequestException(`${producto.nombre} no es un combo`);
+      const mods = await this.validarModificadores(db, producto, it.modificadorIds);
+      await this.insertarItem(db, pedidoId, producto, producto.precio, it.cantidad, it.notas, mods);
+    }
+  }
 
-      const item = await this.db.one(
-        `INSERT INTO pedido_item (pedido_id, producto_id, nombre_producto, precio_unitario,
-                                  tipo_impuesto, tasa_impuesto, cantidad, notas)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-        [pedidoId, producto.id, producto.nombre, producto.precio, producto.tipo_impuesto,
-         producto.tasa_impuesto, it.cantidad, it.notas ?? null],
+  /**
+   * Un combo queda como un ítem con su precio y, debajo, un ítem por cada
+   * componente escogido (combo_item_id), con precio 0 más el extra de la
+   * opción y sus propios modificadores. Así cada componente va a su estación
+   * de cocina y descuenta su receta del inventario.
+   */
+  private async insertarCombo(db: Db, pedidoId: string, combo: ProductoVendible, it: ItemPedidoDto, u: UsuarioToken) {
+    if (it.modificadorIds?.length) throw new BadRequestException(`${combo.nombre}: los modificadores van en cada parte del combo`);
+    const secciones = await this.db.query<{ id: string; nombre: string; min_seleccion: number; max_seleccion: number }>(
+      `SELECT id, nombre, min_seleccion, max_seleccion FROM combo_seccion WHERE combo_id = $1 ORDER BY orden`,
+      [combo.id],
+      db,
+    );
+    if (!secciones.length) throw new BadRequestException(`${combo.nombre} todavía no tiene sus partes configuradas`);
+    const componentes = it.componentes ?? [];
+    const elegidos: { seccion: string; producto: ProductoVendible; extra: string; mods: ModificadorElegido[] }[] = [];
+    for (const c of componentes) {
+      const seccion = secciones.find((s) => s.id === c.seccionId);
+      if (!seccion) throw new BadRequestException(`${combo.nombre}: hay una parte que no es de este combo`);
+      const opcion = await this.db.one<{ precio_extra: string }>(
+        `SELECT precio_extra FROM combo_opcion WHERE seccion_id = $1 AND producto_id = $2`,
+        [seccion.id, c.productoId],
         db,
       );
-      for (const m of mods) {
-        await this.db.query(
-          `INSERT INTO pedido_item_modificador (pedido_item_id, modificador_id, nombre, precio_extra)
-           VALUES ($1, $2, $3, $4)`,
-          [item!.id, m.id, m.nombre, m.precio_extra],
-          db,
-        );
+      if (!opcion) throw new BadRequestException(`${combo.nombre}: esa opción no está en "${seccion.nombre}"`);
+      const producto = await this.productoVendible(db, c.productoId, u);
+      const mods = await this.validarModificadores(db, producto, c.modificadorIds);
+      elegidos.push({ seccion: seccion.nombre, producto, extra: opcion.precio_extra, mods });
+    }
+    for (const s of secciones) {
+      const n = componentes.filter((c) => c.seccionId === s.id).length;
+      if (n < s.min_seleccion || n > s.max_seleccion) {
+        const rango = s.min_seleccion === s.max_seleccion ? `${s.min_seleccion}` : `entre ${s.min_seleccion} y ${s.max_seleccion}`;
+        throw new BadRequestException(`${combo.nombre}: en "${s.nombre}" escoge ${rango}`);
       }
     }
+
+    const padre = await this.insertarItem(db, pedidoId, combo, combo.precio, it.cantidad, it.notas, []);
+    for (const e of elegidos) {
+      await this.insertarItem(db, pedidoId, e.producto, e.extra, it.cantidad, undefined, e.mods, { padre, seccion: e.seccion });
+    }
+  }
+
+  /** Producto activo, a la venta en la sede y no agotado, con el precio de la sede */
+  private async productoVendible(db: Db, productoId: string, u: UsuarioToken): Promise<ProductoVendible> {
+    const producto = await this.db.one<ProductoVendible & { disponible: boolean; agotado: boolean }>(
+      `SELECT p.id, p.nombre, p.tipo, COALESCE(ps.precio, p.precio) AS precio, p.tipo_impuesto, p.tasa_impuesto,
+              COALESCE(ps.disponible, true) AS disponible, COALESCE(ps.agotado, false) AS agotado
+         FROM producto p
+         LEFT JOIN producto_sede ps ON ps.producto_id = p.id AND ps.sede_id = $3
+        WHERE p.id = $1 AND p.empresa_id = $2 AND p.activo`,
+      [productoId, u.empresaId, u.sedeId],
+      db,
+    );
+    if (!producto || !producto.disponible) throw new BadRequestException(`Producto no disponible: ${productoId}`);
+    if (producto.agotado) throw new BadRequestException(`${producto.nombre} está agotado`);
+    return producto;
+  }
+
+  /** Que los modificadores existan, sean del producto y respeten el mínimo y máximo de cada grupo */
+  private async validarModificadores(db: Db, producto: ProductoVendible, modificadorIds?: string[]): Promise<ModificadorElegido[]> {
+    const modIds = [...new Set(modificadorIds ?? [])];
+    const grupos = await this.db.query(
+      `SELECT g.id, g.nombre, g.min_seleccion, g.max_seleccion
+         FROM grupo_modificador g
+         JOIN producto_grupo_modificador pg ON pg.grupo_id = g.id
+        WHERE pg.producto_id = $1`,
+      [producto.id],
+      db,
+    );
+    const mods = modIds.length
+      ? await this.db.query<ModificadorElegido & { grupo_id: string }>(
+          `SELECT id, grupo_id, nombre, precio_extra FROM modificador WHERE id = ANY($1::uuid[]) AND activo`,
+          [modIds],
+          db,
+        )
+      : [];
+    if (mods.length !== modIds.length) throw new BadRequestException('Hay un modificador que no existe o no está activo');
+    for (const m of mods) {
+      if (!grupos.some((g) => g.id === m.grupo_id)) {
+        throw new BadRequestException(`"${m.nombre}" no aplica a ${producto.nombre}`);
+      }
+    }
+    for (const g of grupos) {
+      const elegidos = mods.filter((m) => m.grupo_id === g.id).length;
+      if (elegidos < g.min_seleccion || elegidos > g.max_seleccion) {
+        const rango = g.min_seleccion === g.max_seleccion ? `${g.min_seleccion}` : `entre ${g.min_seleccion} y ${g.max_seleccion}`;
+        throw new BadRequestException(`${producto.nombre}: en "${g.nombre}" elige ${rango} opción(es)`);
+      }
+    }
+    return mods;
+  }
+
+  private async insertarItem(
+    db: Db,
+    pedidoId: string,
+    producto: ProductoVendible,
+    precio: string,
+    cantidad: number,
+    notas: string | undefined,
+    mods: ModificadorElegido[],
+    combo?: { padre: string; seccion: string },
+  ): Promise<string> {
+    const item = await this.db.one<{ id: string }>(
+      `INSERT INTO pedido_item (pedido_id, producto_id, nombre_producto, precio_unitario,
+                                tipo_impuesto, tasa_impuesto, cantidad, notas, combo_item_id, combo_seccion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [pedidoId, producto.id, producto.nombre, precio, producto.tipo_impuesto, producto.tasa_impuesto,
+       cantidad, notas ?? null, combo?.padre ?? null, combo?.seccion ?? null],
+      db,
+    );
+    for (const m of mods) {
+      await this.db.query(
+        `INSERT INTO pedido_item_modificador (pedido_item_id, modificador_id, nombre, precio_extra)
+         VALUES ($1, $2, $3, $4)`,
+        [item!.id, m.id, m.nombre, m.precio_extra],
+        db,
+      );
+    }
+    return item!.id;
   }
 }

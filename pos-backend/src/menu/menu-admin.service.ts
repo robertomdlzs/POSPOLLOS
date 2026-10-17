@@ -11,6 +11,7 @@ import {
   ActualizarGrupoDto,
   ActualizarOpcionDto,
   ActualizarProductoDto,
+  ComboDto,
   CrearCategoriaDto,
   CrearGrupoDto,
   CrearProductoDto,
@@ -118,13 +119,16 @@ export class MenuAdminService {
   }
 
   async crearProducto(dto: CrearProductoDto, u: UsuarioToken) {
+    if (dto.tipo === 'combo' && dto.grupoIds?.length) {
+      throw new BadRequestException('Un combo no lleva modificadores propios: van en los productos que lo componen');
+    }
     const id = await this.db.transaction(async (c) => {
       await this.exigirCategoria(c, dto.categoriaId, u);
       if (dto.estacionId) await this.exigirEstacion(c, dto.estacionId, u);
       const p = await this.db.one<{ id: string }>(
         `INSERT INTO producto (empresa_id, categoria_id, estacion_id, nombre, descripcion, precio, tipo_impuesto,
-                               tasa_impuesto, controla_stock, orden)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+                               tasa_impuesto, controla_stock, tipo, orden)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                  COALESCE((SELECT max(orden) + 1 FROM producto WHERE categoria_id = $2), 1))
          RETURNING id`,
         [
@@ -137,11 +141,12 @@ export class MenuAdminService {
           dto.tipoImpuesto,
           dto.tasaImpuesto,
           dto.controlaStock ?? false,
+          dto.tipo ?? 'simple',
         ],
         c,
       );
       if (dto.grupoIds?.length) await this.guardarGrupos(c, p!.id, dto.grupoIds, u);
-      await this.registrar(u, 'producto_crear', 'producto', p!.id, { nombre: dto.nombre, precio: dinero(dto.precio) }, c);
+      await this.registrar(u, 'producto_crear', 'producto', p!.id, { nombre: dto.nombre, tipo: dto.tipo ?? 'simple', precio: dinero(dto.precio) }, c);
       return p!.id;
     });
     await this.avisar(u);
@@ -151,11 +156,14 @@ export class MenuAdminService {
   async actualizarProducto(id: string, dto: ActualizarProductoDto, u: UsuarioToken) {
     await this.db.transaction(async (c) => {
       const antes = await this.db.one(
-        `SELECT nombre, precio, activo FROM producto WHERE id = $1 AND empresa_id = $2 FOR UPDATE`,
+        `SELECT nombre, precio, activo, tipo FROM producto WHERE id = $1 AND empresa_id = $2 FOR UPDATE`,
         [id, u.empresaId],
         c,
       );
       if (!antes) throw new NotFoundException('Producto no encontrado');
+      if (antes.tipo === 'combo' && dto.grupoIds?.length) {
+        throw new BadRequestException('Un combo no lleva modificadores propios: van en los productos que lo componen');
+      }
       if (dto.categoriaId) await this.exigirCategoria(c, dto.categoriaId, u);
       if (dto.estacionId) await this.exigirEstacion(c, dto.estacionId, u);
       await this.db.query(
@@ -219,6 +227,12 @@ export class MenuAdminService {
     if (!p) throw new NotFoundException('Producto no encontrado');
     const vendido = await this.db.one(`SELECT 1 FROM pedido_item WHERE producto_id = $1 LIMIT 1`, [id]);
     if (vendido) throw new ConflictException('Este producto ya se vendió: desactívalo en lugar de borrarlo');
+    const enCombo = await this.db.one(
+      `SELECT c.nombre FROM combo_opcion o JOIN combo_seccion s ON s.id = o.seccion_id JOIN producto c ON c.id = s.combo_id
+        WHERE o.producto_id = $1 LIMIT 1`,
+      [id],
+    );
+    if (enCombo) throw new ConflictException(`Este producto es parte del combo ${enCombo.nombre}: quítalo de ahí antes de borrarlo`);
     await this.db.transaction(async (c) => {
       await this.db.query(`DELETE FROM receta WHERE producto_id = $1`, [id], c);
       const borrado = await this.db.one(`DELETE FROM producto WHERE id = $1 RETURNING imagen_url`, [id], c);
@@ -266,6 +280,49 @@ export class MenuAdminService {
     if (!p) throw new NotFoundException('Producto no encontrado');
     await this.almacen.borrar(p.anterior);
     await this.registrar(u, 'producto_foto', 'producto', id, { url: null });
+    await this.avisar(u);
+    return this.producto(id, u);
+  }
+
+  /**
+   * Arma el combo: sus partes y, en cada una, los productos que se pueden
+   * escoger. Reemplaza la estructura anterior; los pedidos viejos no cambian
+   * porque guardan sus componentes con nombre y precio.
+   */
+  async guardarCombo(id: string, dto: ComboDto, u: UsuarioToken) {
+    await this.db.transaction(async (c) => {
+      const combo = await this.db.one(`SELECT tipo FROM producto WHERE id = $1 AND empresa_id = $2 FOR UPDATE`, [id, u.empresaId], c);
+      if (!combo) throw new NotFoundException('Producto no encontrado');
+      if (combo.tipo !== 'combo') throw new BadRequestException('Este producto no es un combo');
+      const ids = [...new Set(dto.secciones.flatMap((s) => s.opciones.map((o) => o.productoId)))];
+      const productos = await this.db.query(`SELECT id, nombre, tipo FROM producto WHERE id = ANY($1::uuid[]) AND empresa_id = $2`, [ids, u.empresaId], c);
+      if (productos.length !== ids.length) throw new BadRequestException('Hay un producto del combo que no existe');
+      const anidado = productos.find((p) => p.tipo === 'combo' || p.id === id);
+      if (anidado) throw new BadRequestException(`${anidado.nombre} es un combo: un combo no puede llevar otro combo`);
+      for (const s of dto.secciones) {
+        if (s.min > s.max) throw new BadRequestException(`En "${s.nombre}" el mínimo no puede ser mayor que el máximo`);
+        if (s.min > s.opciones.length) throw new BadRequestException(`En "${s.nombre}" se piden más opciones de las que hay`);
+        if (new Set(s.opciones.map((o) => o.productoId)).size !== s.opciones.length) {
+          throw new BadRequestException(`En "${s.nombre}" hay un producto repetido`);
+        }
+      }
+      await this.db.query(`DELETE FROM combo_seccion WHERE combo_id = $1`, [id], c);
+      for (const [i, s] of dto.secciones.entries()) {
+        const seccion = await this.db.one<{ id: string }>(
+          `INSERT INTO combo_seccion (combo_id, nombre, min_seleccion, max_seleccion, orden) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [id, s.nombre.trim(), s.min, s.max, i + 1],
+          c,
+        );
+        for (const [j, o] of s.opciones.entries()) {
+          await this.db.query(
+            `INSERT INTO combo_opcion (seccion_id, producto_id, precio_extra, orden) VALUES ($1, $2, $3, $4)`,
+            [seccion!.id, o.productoId, dinero(o.precioExtra), j + 1],
+            c,
+          );
+        }
+      }
+      await this.registrar(u, 'combo_editar', 'producto', id, dto, c);
+    });
     await this.avisar(u);
     return this.producto(id, u);
   }
@@ -470,11 +527,18 @@ export class MenuAdminService {
 
 const SQL_PRODUCTO = `
   SELECT p.id, p.nombre, p.descripcion, p.precio, p.tipo_impuesto AS "tipoImpuesto", p.tasa_impuesto AS "tasaImpuesto",
-         p.controla_stock AS "controlaStock", p.activo, p.orden, p.imagen_url AS "imagenUrl",
+         p.controla_stock AS "controlaStock", p.activo, p.orden, p.imagen_url AS "imagenUrl", p.tipo,
          p.categoria_id AS "categoriaId", c.nombre AS categoria, p.estacion_id AS "estacionId", e.nombre AS estacion,
          ps.precio AS "precioSede", COALESCE(ps.disponible, true) AS disponible, COALESCE(ps.agotado, false) AS agotado,
          COALESCE((SELECT json_agg(pg.grupo_id ORDER BY pg.orden) FROM producto_grupo_modificador pg WHERE pg.producto_id = p.id), '[]') AS "grupoIds",
-         EXISTS (SELECT 1 FROM pedido_item i WHERE i.producto_id = p.id) AS vendido
+         EXISTS (SELECT 1 FROM pedido_item i WHERE i.producto_id = p.id) AS vendido,
+         COALESCE((SELECT json_agg(json_build_object(
+                     'id', s.id, 'nombre', s.nombre, 'min', s.min_seleccion, 'max', s.max_seleccion,
+                     'opciones', (SELECT COALESCE(json_agg(json_build_object('productoId', o.producto_id, 'producto', op.nombre,
+                                                                              'precioExtra', o.precio_extra) ORDER BY o.orden), '[]')
+                                    FROM combo_opcion o JOIN producto op ON op.id = o.producto_id WHERE o.seccion_id = s.id)
+                   ) ORDER BY s.orden)
+                     FROM combo_seccion s WHERE s.combo_id = p.id), '[]') AS secciones
     FROM producto p
     JOIN categoria c ON c.id = p.categoria_id
     LEFT JOIN estacion_cocina e ON e.id = p.estacion_id

@@ -107,6 +107,7 @@ Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, 
 | GET | `/inventario/stock` | `inventario.ver` | Stock por insumo y alerta de mínimo |
 | GET · POST · PATCH · DELETE | `/categorias` · `/categorias/:id` | `menu.editar` | Categorías; `PUT /categorias/orden` con los ids en su orden |
 | GET · POST · PATCH · DELETE | `/productos` · `/productos/:id` | ídem | Productos con impuesto, estación y grupos de modificadores; lo vendido no se borra, se desactiva |
+| PUT | `/productos/:id/combo` | `menu.editar` | Partes del combo (mínimo, máximo y productos con precio extra); reemplaza las anteriores |
 | PUT | `/productos/orden` · `/productos/:id/sedes/:sedeId` | ídem | Orden dentro de la categoría · precio propio y disponibilidad por sede |
 | POST · DELETE | `/productos/:id/foto` | `menu.editar` | Foto (multipart, campo `foto`): se guarda en WebP de 800×600 y se sirve en `/api/archivos/` |
 | PUT | `/productos/:id/agotado` | `menu.agotar` | Agotado en la sede; avisa a las tablets (`menu.cambio`) |
@@ -142,6 +143,10 @@ Cada conexión entra a la sala de su sede, así que una sede nunca ve comandas d
 - **Bloqueos de fila** (`FOR UPDATE`) para que dos personas no cobren el mismo pedido ni abran la misma mesa a la vez.
 - **Validación estricta:** campos que no estén en el DTO se rechazan con 400.
 - Helmet, CORS restringido y errores de PostgreSQL traducidos a respuestas claras en vez de 500.
+
+## Combos y menú del día
+
+Un combo es un producto de tipo `combo` con partes ("Plato fuerte", "Bebida"), cada una con un mínimo, un máximo y sus opciones, que son otros productos con un precio extra opcional. Al pedirlo, el combo queda como un ítem con su precio y cada parte escogida como un ítem hijo (`combo_item_id`) de precio 0 más su extra y sus modificadores. Así cada parte va a su estación de cocina y descuenta su receta del inventario sin lógica aparte. Cocina ve las partes con el nombre del combo, no el combo; anular el combo anula sus partes, y una parte sola no se anula. El menú del día es un combo cuyas opciones se cambian cada día.
 
 ## Dinero e impuestos
 

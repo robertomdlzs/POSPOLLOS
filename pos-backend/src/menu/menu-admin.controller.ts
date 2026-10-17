@@ -23,6 +23,7 @@ import {
   ActualizarOpcionDto,
   ActualizarProductoDto,
   AgotadoDto,
+  ComboDto,
   CrearCategoriaDto,
   CrearGrupoDto,
   CrearProductoDto,
@@ -123,6 +124,13 @@ export class ProductosController {
   @RequierePermiso('menu.editar')
   quitarFoto(@Param('id', ParseUUIDPipe) id: string, @UsuarioActual() u: UsuarioToken) {
     return this.menu.quitarFoto(id, u);
+  }
+
+  /** Partes del combo y lo que se puede escoger en cada una; reemplaza lo anterior */
+  @Put(':id/combo')
+  @RequierePermiso('menu.editar')
+  guardarCombo(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ComboDto, @UsuarioActual() u: UsuarioToken) {
+    return this.menu.guardarCombo(id, dto, u);
   }
 
   /** Precio propio y si se vende en esa sede */

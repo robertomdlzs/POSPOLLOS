@@ -63,6 +63,11 @@ export class CrearProductoDto {
   @IsUUID('all', { message: 'Escoge una categoría' })
   categoriaId: string;
 
+  /** Solo al crearlo: un combo arma sus componentes con PUT /productos/:id/combo */
+  @IsOptional()
+  @IsIn(['simple', 'combo'], { message: 'El tipo debe ser producto o combo' })
+  tipo?: 'simple' | 'combo';
+
   @IsString()
   @Length(2, 80, { message: 'El nombre debe tener entre 2 y 80 caracteres' })
   nombre: string;
@@ -171,6 +176,49 @@ export class ProductoSedeDto {
   @IsOptional()
   @IsBoolean()
   disponible?: boolean;
+}
+
+export class OpcionComboDto {
+  @IsUUID('all', { message: 'Hay un producto del combo que no es válido' })
+  productoId: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'El precio extra debe ser un número' })
+  @Min(0, { message: 'El precio extra no puede ser negativo' })
+  @Max(MONTO_MAXIMO, { message: 'El precio extra es demasiado alto' })
+  precioExtra: number;
+}
+
+export class SeccionComboDto {
+  @IsString()
+  @Length(2, 40, { message: 'El nombre de cada parte del combo debe tener entre 2 y 40 caracteres' })
+  nombre: string;
+
+  @IsInt({ message: 'El mínimo debe ser un número entero' })
+  @Min(0, { message: 'El mínimo no puede ser negativo' })
+  @Max(10)
+  min: number;
+
+  @IsInt({ message: 'El máximo debe ser un número entero' })
+  @Min(1, { message: 'El máximo debe ser al menos 1' })
+  @Max(10, { message: 'El máximo no puede pasar de 10' })
+  max: number;
+
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Cada parte del combo necesita al menos una opción' })
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => OpcionComboDto)
+  opciones: OpcionComboDto[];
+}
+
+/** La estructura completa del combo; reemplaza la anterior */
+export class ComboDto {
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Un combo necesita al menos una parte' })
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => SeccionComboDto)
+  secciones: SeccionComboDto[];
 }
 
 export class AgotadoDto {

@@ -19,6 +19,21 @@ import {
 import { AutorizacionDto } from '../common/dto';
 import { TIPOS_SERVICIO } from '../common/tipos';
 
+/** Lo que se escogió en una parte de un combo */
+export class ComponenteDto {
+  @IsUUID()
+  seccionId: string;
+
+  @IsUUID()
+  productoId: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('all', { each: true })
+  modificadorIds?: string[];
+}
+
 export class ItemPedidoDto {
   @IsUUID()
   productoId: string;
@@ -38,6 +53,14 @@ export class ItemPedidoDto {
   @ArrayMaxSize(20)
   @IsUUID('all', { each: true })
   modificadorIds?: string[];
+
+  /** Solo para combos: lo escogido en cada parte */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ComponenteDto)
+  componentes?: ComponenteDto[];
 }
 
 export class CrearPedidoDto {
