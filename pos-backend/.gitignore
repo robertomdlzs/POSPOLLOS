@@ -3,4 +3,4 @@ dist/
 .env
 *.tsbuildinfo
 # Fotos subidas en desarrollo
-archivos/
+/archivos/
