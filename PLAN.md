@@ -103,11 +103,11 @@ Hoy los roles son un `ENUM` fijo. Se pasa a permisos por acción y a roles que d
 
 ### 1.3 Menú
 
-- [ ] **1.3.1 API de categorías y productos** (L). CRUD completo, orden por arrastre, activar y desactivar. Nunca se borra un producto que ya se vendió: solo se desactiva.
+- [x] **1.3.1 API de categorías y productos** (L). CRUD completo, orden por arrastre, activar y desactivar. Nunca se borra un producto que ya se vendió: solo se desactiva.
 - [ ] **1.3.2 Fotos** (M). Subida al servidor (disco local en desarrollo, almacenamiento S3-compatible en producción), redimensionadas a un tamaño fijo y en formato WebP.
-- [ ] **1.3.3 Modificadores** (M). CRUD de grupos y opciones, y su asignación a productos.
+- [x] **1.3.3 Modificadores** (M). CRUD de grupos y opciones, y su asignación a productos.
 - [ ] **1.3.4 Agotado en vivo** (S). Marcar y desmarcar un producto como agotado durante el servicio, con aviso por WebSocket a todas las tablets.
-- [ ] **1.3.5 Precio por sede** (M). Migración con la tabla `producto_sede` (precio, disponible). Si no hay fila, aplica el precio general.
+- [x] **1.3.5 Precio por sede** (M). Migración con la tabla `producto_sede` (precio, disponible). Si no hay fila, aplica el precio general.
 - [ ] **1.3.6 Combos y menú del día** (L). Un producto de tipo combo con componentes a escoger. En cocina se ven los componentes y el inventario descuenta cada uno.
 - [ ] **1.3.7 Pantallas del menú** (L). Categorías, productos con foto, modificadores y combos.
 

@@ -25,6 +25,15 @@ describe('catálogo de permisos', () => {
   });
 });
 
+describe('catálogo del frontend', () => {
+  it('tiene exactamente los mismos permisos que el del backend', () => {
+    const fuente = readFileSync(join(__dirname, '..', '..', '..', 'pos-frontend', 'src', 'permisos.tsx'), 'utf8');
+    const tipo = fuente.slice(fuente.indexOf('export type Permiso'), fuente.indexOf(';', fuente.indexOf('export type Permiso')));
+    const delFrontend = [...tipo.matchAll(/'([a-z]+\.[a-z_]+)'/g)].map((m) => m[1]).sort();
+    expect(delFrontend).toEqual([...TODOS_LOS_PERMISOS].sort());
+  });
+});
+
 describe('permisosDeRol', () => {
   it('el admin tiene todos, también los que no estén guardados', () => {
     expect(permisosDeRol('admin', [])).toEqual(TODOS_LOS_PERMISOS);

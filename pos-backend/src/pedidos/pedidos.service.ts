@@ -283,13 +283,18 @@ export class PedidosService {
 
   private async insertarItems(db: Db, pedidoId: string, items: ItemPedidoDto[], u: UsuarioToken) {
     for (const it of items) {
+      // El precio que vale es el de la sede, si tiene uno propio
       const producto = await this.db.one(
-        `SELECT id, nombre, precio, tipo_impuesto, tasa_impuesto
-           FROM producto WHERE id = $1 AND empresa_id = $2 AND activo`,
-        [it.productoId, u.empresaId],
+        `SELECT p.id, p.nombre, COALESCE(ps.precio, p.precio) AS precio, p.tipo_impuesto, p.tasa_impuesto,
+                COALESCE(ps.disponible, true) AS disponible, COALESCE(ps.agotado, false) AS agotado
+           FROM producto p
+           LEFT JOIN producto_sede ps ON ps.producto_id = p.id AND ps.sede_id = $3
+          WHERE p.id = $1 AND p.empresa_id = $2 AND p.activo`,
+        [it.productoId, u.empresaId, u.sedeId],
         db,
       );
-      if (!producto) throw new BadRequestException(`Producto no disponible: ${it.productoId}`);
+      if (!producto || !producto.disponible) throw new BadRequestException(`Producto no disponible: ${it.productoId}`);
+      if (producto.agotado) throw new BadRequestException(`${producto.nombre} está agotado`);
 
       const modIds = [...new Set(it.modificadorIds ?? [])];
       const grupos = await this.db.query(

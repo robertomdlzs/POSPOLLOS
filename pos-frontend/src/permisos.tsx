@@ -9,6 +9,7 @@ export type Permiso =
   | 'pedido.tomar'
   | 'pedido.anular_enviado'
   | 'cocina.operar'
+  | 'menu.agotar'
   | 'caja.operar'
   | 'caja.retiro'
   | 'caja.ver_esperado'

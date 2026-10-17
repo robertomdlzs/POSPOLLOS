@@ -6,24 +6,29 @@ import { DatabaseService } from '../database/database.service';
 export class MenuService {
   constructor(private readonly db: DatabaseService) {}
 
-  /** Productos activos con sus grupos de modificadores, listos para pintar el menú */
+  /**
+   * Productos activos que se venden en la sede, con su precio de la sede (o el
+   * general), si están agotados y sus grupos de modificadores, listos para
+   * pintar el menú de las tablets.
+   */
   menu(u: UsuarioToken) {
     return this.db.query(
-      `SELECT p.id, p.nombre, p.descripcion, p.precio, p.imagen_url AS "imagenUrl", c.id AS "categoriaId", c.nombre AS categoria,
-              COALESCE(json_agg(json_build_object(
-                  'id', g.id, 'nombre', g.nombre, 'min', g.min_seleccion, 'max', g.max_seleccion,
-                  'opciones', (SELECT COALESCE(json_agg(json_build_object(
-                                   'id', m.id, 'nombre', m.nombre, 'precioExtra', m.precio_extra) ORDER BY m.nombre), '[]')
-                                 FROM modificador m WHERE m.grupo_id = g.id AND m.activo)
-                ) ORDER BY g.nombre) FILTER (WHERE g.id IS NOT NULL), '[]') AS modificadores
+      `SELECT p.id, p.nombre, p.descripcion, COALESCE(ps.precio, p.precio) AS precio, p.imagen_url AS "imagenUrl",
+              COALESCE(ps.agotado, false) AS agotado, c.id AS "categoriaId", c.nombre AS categoria,
+              COALESCE((SELECT json_agg(json_build_object(
+                          'id', g.id, 'nombre', g.nombre, 'min', g.min_seleccion, 'max', g.max_seleccion,
+                          'opciones', (SELECT COALESCE(json_agg(json_build_object(
+                                           'id', m.id, 'nombre', m.nombre, 'precioExtra', m.precio_extra) ORDER BY m.orden, m.nombre), '[]')
+                                         FROM modificador m WHERE m.grupo_id = g.id AND m.activo)
+                        ) ORDER BY pg.orden, g.nombre)
+                          FROM producto_grupo_modificador pg JOIN grupo_modificador g ON g.id = pg.grupo_id
+                         WHERE pg.producto_id = p.id), '[]') AS modificadores
          FROM producto p
          JOIN categoria c ON c.id = p.categoria_id
-         LEFT JOIN producto_grupo_modificador pg ON pg.producto_id = p.id
-         LEFT JOIN grupo_modificador g ON g.id = pg.grupo_id
-        WHERE p.empresa_id = $1 AND p.activo AND c.activa
-        GROUP BY p.id, c.id
-        ORDER BY c.orden, c.nombre, p.nombre`,
-      [u.empresaId],
+         LEFT JOIN producto_sede ps ON ps.producto_id = p.id AND ps.sede_id = $2
+        WHERE p.empresa_id = $1 AND p.activo AND c.activa AND COALESCE(ps.disponible, true)
+        ORDER BY c.orden, c.nombre, p.orden, p.nombre`,
+      [u.empresaId, u.sedeId],
     );
   }
 

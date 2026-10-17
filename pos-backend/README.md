@@ -105,6 +105,11 @@ Todas las rutas van bajo `/api` y exigen `Authorization: Bearer <accessToken>`, 
 | GET | `/ventas/:id` | ídem | Venta con pagos y cambio |
 | POST | `/ventas/:id/anular` | ídem | Exige la aprobación de alguien con `venta.anular` y turno abierto |
 | GET | `/inventario/stock` | `inventario.ver` | Stock por insumo y alerta de mínimo |
+| GET · POST · PATCH · DELETE | `/categorias` · `/categorias/:id` | `menu.editar` | Categorías; `PUT /categorias/orden` con los ids en su orden |
+| GET · POST · PATCH · DELETE | `/productos` · `/productos/:id` | ídem | Productos con impuesto, estación y grupos de modificadores; lo vendido no se borra, se desactiva |
+| PUT | `/productos/orden` · `/productos/:id/sedes/:sedeId` | ídem | Orden dentro de la categoría · precio propio y disponibilidad por sede |
+| PUT | `/productos/:id/agotado` | `menu.agotar` | Agotado en la sede; avisa a las tablets (`menu.cambio`) |
+| GET · POST · PATCH · DELETE | `/grupos-modificadores` · `/grupos-modificadores/:id` | `menu.editar` | Grupos con mínimo, máximo y opciones; `POST /:id/opciones`, `PATCH /modificadores/:id` |
 | GET | `/usuarios?buscar=&limite=&cursor=` | `usuario.editar` | Usuarios con sus roles por sede, paginados |
 | POST · PATCH | `/usuarios` · `/usuarios/:id` | ídem | Crear; cambiar nombre, correo o activo (desactivar cierra sus sesiones) |
 | PUT | `/usuarios/:id/pin` · `/usuarios/:id/contrasena` · `/usuarios/:id/roles` | ídem | PIN y contraseña con política; roles por sede, aplicados al momento |

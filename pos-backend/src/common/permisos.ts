@@ -19,6 +19,10 @@ export const PERMISOS = {
     grupo: 'Cocina',
     descripcion: 'Ver la pantalla de cocina y marcar los platos en preparación, listos o entregados',
   },
+  'menu.agotar': {
+    grupo: 'Cocina',
+    descripcion: 'Marcar productos como agotados durante el servicio, para que no se puedan pedir',
+  },
   'caja.operar': {
     grupo: 'Caja',
     descripcion: 'Abrir y cerrar turnos de caja y registrar ingresos de efectivo',
